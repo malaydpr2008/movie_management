@@ -6,7 +6,7 @@ from pydantic import Field
 
 from apps.narrative.models import Project, Act, Sequence, Scene
 from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem
-from apps.shots.models import CameraSetup, Shot, Take
+from apps.shots.models import CameraSetup, Shot, Take, VfxShot
 from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem, DailyProductionReport, CrewMember
 from apps.core.models import ProjectMembership
 from apps.narrative.services import parse_fountain_script
@@ -2199,9 +2199,76 @@ def delete_crew_member(request, crew_id: uuid.UUID):
     crew.delete()
     return {"success": True}
 
+# ---------------------------------------------------------------------------
+# VFX ROUTER
+# ---------------------------------------------------------------------------
+
+vfx_router = Router(tags=["VFX Pipeline"])
+
+class VfxShotOut(Schema):
+    id: uuid.UUID
+    scene_id: uuid.UUID
+    vfx_id: str
+    status: str
+    description: str
+    frame_count: int
+    vendor_name: str
+
+class VfxShotIn(Schema):
+    scene_id: uuid.UUID
+    vfx_id: str
+    status: str
+    description: str
+    frame_count: int = 0
+    vendor_name: str = ""
+
+class VfxStatusUpdateIn(Schema):
+    status: str
+
+@vfx_router.get("/projects/{project_id}/shots", response=List[VfxShotOut])
+def list_vfx_shots(request, project_id: uuid.UUID):
+    return VfxShot.objects.filter(scene__sequence__act__project_id=project_id)
+
+@vfx_router.post("/projects/{project_id}/shots", response=VfxShotOut)
+def create_vfx_shot(request, project_id: uuid.UUID, payload: VfxShotIn):
+    scene = get_object_or_404(Scene, id=payload.scene_id, sequence__act__project_id=project_id)
+    return VfxShot.objects.create(
+        scene=scene,
+        vfx_id=payload.vfx_id,
+        status=payload.status,
+        description=payload.description,
+        frame_count=payload.frame_count,
+        vendor_name=payload.vendor_name
+    )
+
+@vfx_router.patch("/shots/{shot_id}", response=VfxShotOut)
+def update_vfx_shot(request, shot_id: uuid.UUID, payload: VfxShotIn):
+    shot = get_object_or_404(VfxShot, id=shot_id)
+    shot.vfx_id = payload.vfx_id
+    shot.status = payload.status
+    shot.description = payload.description
+    shot.frame_count = payload.frame_count
+    shot.vendor_name = payload.vendor_name
+    shot.save()
+    return shot
+
+@vfx_router.patch("/shots/{shot_id}/status", response=VfxShotOut)
+def update_vfx_shot_status(request, shot_id: uuid.UUID, payload: VfxStatusUpdateIn):
+    shot = get_object_or_404(VfxShot, id=shot_id)
+    shot.status = payload.status
+    shot.save()
+    return shot
+
+@vfx_router.delete("/shots/{shot_id}")
+def delete_vfx_shot(request, shot_id: uuid.UUID):
+    shot = get_object_or_404(VfxShot, id=shot_id)
+    shot.delete()
+    return {"success": True}
+
 # Register routers on unified api instance
 api.add_router("/studio", studio_router)
 api.add_router("/narrative", narrative_router)
 api.add_router("/shots", shots_router)
 api.add_router("/breakdown", breakdown_router)
 api.add_router("/logistics", logistics_router)
+api.add_router("/vfx", vfx_router)

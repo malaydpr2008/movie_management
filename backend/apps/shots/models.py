@@ -54,3 +54,14 @@ class Take(TimeStampedModel):
     def __str__(self):
         circle = " [CIRCLE]" if self.is_circle_take else ""
         return f"Take {self.take_number}{circle} - {self.shot}"
+
+class VfxShot(TimeStampedModel):
+    scene = models.ForeignKey('narrative.Scene', on_delete=models.CASCADE, related_name='vfx_shots')
+    vfx_id = models.CharField(max_length=50)
+    status = models.CharField(max_length=50)
+    description = models.TextField()
+    frame_count = models.PositiveIntegerField(default=0)
+    vendor_name = models.CharField(max_length=100, blank=True)
+
+    def __str__(self):
+        return f"VFX {self.vfx_id} - {self.status}"
