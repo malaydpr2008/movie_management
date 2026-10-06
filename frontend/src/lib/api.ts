@@ -519,20 +519,38 @@ export interface BudgetSummary {
 
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers || {}),
-    },
-  });
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options?.headers || {}),
+      },
+    });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`API Error [${res.status}] ${url}: ${errorText}`);
+    if (!res.ok) {
+      let errorMsg = `API Error [${res.status}] ${url}`;
+      try {
+        const errorData = await res.json();
+        if (errorData.detail) {
+          errorMsg = Array.isArray(errorData.detail) 
+            ? errorData.detail.map((e: any) => `${e.loc?.join('.') || 'Field'}: ${e.msg}`).join(', ')
+            : errorData.detail;
+        } else if (errorData.message) {
+          errorMsg = errorData.message;
+        }
+      } catch (parseError) {
+        // Fallback if not JSON
+        const errorText = await res.text();
+        if (errorText) errorMsg += `: ${errorText}`;
+      }
+      throw new Error(errorMsg);
+    }
+
+    return res.json() as Promise<T>;
+  } catch (error: any) {
+    throw new Error(error.message || "Failed to fetch");
   }
-
-  return res.json() as Promise<T>;
 }
 
 // ---------------------------------------------------------------------------

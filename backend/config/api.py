@@ -35,8 +35,12 @@ class ProjectOut(Schema):
 class ProjectCreateIn(Schema):
     title: str
     slug: Optional[str] = None
+    status: Optional[str] = "PRE_PRODUCTION"
     aspect_ratio: str = "2.39:1"
     target_runtime_minutes: int = 120
+    
+    class Config:
+        extra = "ignore"
 
 class SceneTreeNode(Schema):
     id: uuid.UUID
@@ -595,6 +599,7 @@ def create_project(request, payload: ProjectCreateIn):
     project = Project.objects.create(
         title=payload.title,
         slug=slug,
+        status=payload.status,
         aspect_ratio=payload.aspect_ratio,
         target_runtime_minutes=payload.target_runtime_minutes
     )
