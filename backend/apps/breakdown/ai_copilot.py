@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Optional, TypedDict
 from pydantic import BaseModel, Field
-from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, END
 from django.shortcuts import get_object_or_404
 from apps.narrative.models import Scene, Project
@@ -35,9 +35,8 @@ class BreakdownState(TypedDict):
     summary: dict
 
 def extract_entities(state: BreakdownState) -> BreakdownState:
-    # Use OpenAI API (or compatible local LLM) to extract structured data
-    # Note: ensure OPENAI_API_KEY is in environment or use a mock for local dev
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    # Use local Ollama instance (qwen3.5:9b) to extract structured data
+    llm = ChatOllama(model="qwen3.5:9b", base_url="http://host.docker.internal:11434", temperature=0.1)
     structured_llm = llm.with_structured_output(SceneExtraction)
     
     prompt = f"""
