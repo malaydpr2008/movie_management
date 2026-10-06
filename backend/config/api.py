@@ -7,7 +7,7 @@ from pydantic import Field
 from apps.narrative.models import Project, Act, Sequence, Scene
 from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem
 from apps.shots.models import CameraSetup, Shot, Take
-from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem, DailyProductionReport
+from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem, DailyProductionReport, CrewMember
 from apps.core.models import ProjectMembership
 from apps.narrative.services import parse_fountain_script
 from apps.logistics.tasks import generate_call_sheet_pdf
@@ -2155,6 +2155,49 @@ def update_dpr(request, shoot_day_id: uuid.UUID, payload: DPRIn):
     dpr.delay_notes = payload.delay_notes
     dpr.save()
     return dpr
+
+# ---------------------------------------------------------------------------
+# CREW ROSTER ENDPOINTS
+# ---------------------------------------------------------------------------
+
+class CrewMemberOut(Schema):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    name: str
+    department: str
+    role: str
+    email: str
+    phone: str
+
+class CrewMemberIn(Schema):
+    name: str
+    department: str
+    role: str
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+
+@logistics_router.get("/projects/{project_id}/crew", response=List[CrewMemberOut])
+def list_crew(request, project_id: uuid.UUID):
+    return CrewMember.objects.filter(project_id=project_id)
+
+@logistics_router.post("/projects/{project_id}/crew", response=CrewMemberOut)
+def create_crew_member(request, project_id: uuid.UUID, payload: CrewMemberIn):
+    project = get_object_or_404(Project, id=project_id)
+    return CrewMember.objects.create(project=project, **payload.dict())
+
+@logistics_router.patch("/crew/{crew_id}", response=CrewMemberOut)
+def update_crew_member(request, crew_id: uuid.UUID, payload: CrewMemberIn):
+    crew = get_object_or_404(CrewMember, id=crew_id)
+    for attr, value in payload.dict().items():
+        setattr(crew, attr, value)
+    crew.save()
+    return crew
+
+@logistics_router.delete("/crew/{crew_id}")
+def delete_crew_member(request, crew_id: uuid.UUID):
+    crew = get_object_or_404(CrewMember, id=crew_id)
+    crew.delete()
+    return {"success": True}
 
 # Register routers on unified api instance
 api.add_router("/studio", studio_router)
