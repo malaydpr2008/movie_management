@@ -151,3 +151,54 @@ def get_crew_roster(project_id: str) -> str:
         return json.dumps(roster)
     except Exception as e:
         return json.dumps({"error": str(e)})
+
+@tool
+def get_project_scenes(project_id: str) -> str:
+    """
+    Retrieve all scenes for a given project, returning a JSON summary of Scene Headings 
+    and their current LexoRank order.
+    """
+    try:
+        from apps.narrative.models import Scene
+        project_uuid = uuid.UUID(project_id)
+        scenes = Scene.objects.filter(sequence__act__project_id=project_uuid).order_by('lexorank')
+        
+        summary = []
+        for scene in scenes:
+            summary.append({
+                "scene_id": str(scene.id),
+                "scene_number": scene.scene_number,
+                "heading": scene.heading,
+                "lexorank": scene.lexorank
+            })
+            
+        return json.dumps(summary)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@tool
+def get_vfx_tracker(project_id: str) -> str:
+    """
+    Retrieve all VFX shots for a given project, returning a JSON summary grouped by pipeline status.
+    """
+    try:
+        from apps.shots.models import VfxShot
+        project_uuid = uuid.UUID(project_id)
+        # Assuming VfxShot is related to Scene which is related to Sequence -> Act -> Project
+        shots = VfxShot.objects.filter(scene__sequence__act__project_id=project_uuid)
+        
+        tracker = {}
+        for shot in shots:
+            status = shot.status
+            if status not in tracker:
+                tracker[status] = []
+            tracker[status].append({
+                "shot_id": str(shot.id),
+                "vfx_id": shot.vfx_id,
+                "description": shot.description,
+                "cost_estimate": float(shot.cost_estimate) if shot.cost_estimate else 0.0
+            })
+            
+        return json.dumps(tracker)
+    except Exception as e:
+        return json.dumps({"error": str(e)})

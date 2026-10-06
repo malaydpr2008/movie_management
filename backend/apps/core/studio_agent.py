@@ -11,7 +11,9 @@ from apps.core.agent_tools import (
     reschedule_scene, 
     search_studio_documents,
     get_financial_summary,
-    get_crew_roster
+    get_crew_roster,
+    get_project_scenes,
+    get_vfx_tracker
 )
 
 # Define the tools the agent can use
@@ -20,7 +22,9 @@ tools = [
     reschedule_scene, 
     search_studio_documents,
     get_financial_summary,
-    get_crew_roster
+    get_crew_roster,
+    get_project_scenes,
+    get_vfx_tracker
 ]
 
 # Define the state for the LangGraph
