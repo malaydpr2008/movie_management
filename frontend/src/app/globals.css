@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #07090e;
+  --foreground: #f1f5f9;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'Inter', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* Screenplay Formatting Standards */
+.screenplay-container {
+  font-family: 'Courier Prime', 'Courier New', monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+
+.screenplay-slugline {
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+}
+
+.screenplay-action {
+  margin-bottom: 0.85rem;
+  max-width: 58ch;
+  color: #cbd5e1;
+}
+
+.screenplay-character {
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-left: 18ch;
+  margin-top: 1rem;
+  margin-bottom: 0.15rem;
+  color: #f59e0b;
+}
+
+.screenplay-parenthetical {
+  margin-left: 14ch;
+  margin-bottom: 0.15rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.screenplay-dialogue {
+  margin-left: 10ch;
+  margin-bottom: 0.85rem;
+  max-width: 36ch;
+  color: #f8fafc;
+}
+
+/* Glassmorphism utils */
+.glass-panel {
+  background: rgba(22, 30, 44, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glass-panel-subtle {
+  background: rgba(17, 23, 34, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-card-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 16px -2px rgba(56, 189, 248, 0.15);
+}
