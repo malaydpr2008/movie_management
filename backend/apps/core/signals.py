@@ -2,7 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from apps.narrative.models import Project
 from apps.breakdown.models import CostumeLook
-from apps.narrative.models import Shot
+from apps.shots.models import Shot
 from apps.core.tasks import async_ingest_document
 
 @receiver(post_save, sender=Project)
