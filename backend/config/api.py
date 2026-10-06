@@ -12,6 +12,7 @@ from apps.financials.models import BudgetAccount, LineItem
 from apps.core.models import ProjectMembership
 from apps.narrative.services import parse_fountain_script
 from apps.logistics.tasks import generate_call_sheet_pdf
+from apps.breakdown.ai_copilot import run_scene_breakdown
 
 api = NinjaAPI(
     title="Movie Management Studio API",
@@ -1351,6 +1352,12 @@ def add_scene_breakdown_item(request, scene_id: uuid.UUID, payload: SceneBreakdo
         custom_notes=item.custom_notes,
         is_continuity_critical=item.is_continuity_critical
     )
+
+@breakdown_router.post("/scenes/{scene_id}/ai-copilot")
+def run_ai_copilot_endpoint(request, scene_id: uuid.UUID):
+    # This runs synchronously; in production, wrap in Celery task if it exceeds standard request timeouts
+    summary = run_scene_breakdown(str(scene_id))
+    return summary
 
 @breakdown_router.delete("/items/{item_id}")
 def delete_breakdown_item(request, item_id: uuid.UUID):
