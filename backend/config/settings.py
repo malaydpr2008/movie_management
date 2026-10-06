@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'apps.breakdown.apps.BreakdownConfig',
     'apps.shots.apps.ShotsConfig',
     'apps.logistics.apps.LogisticsConfig',
+    'apps.financials.apps.FinancialsConfig',
 ]
 
 MIDDLEWARE = [

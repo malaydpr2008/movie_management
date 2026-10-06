@@ -8,6 +8,7 @@ from apps.narrative.models import Project, Act, Sequence, Scene
 from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem
 from apps.shots.models import CameraSetup, Shot, Take, VfxShot
 from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem, DailyProductionReport, CrewMember
+from apps.financials.models import BudgetAccount, LineItem
 from apps.core.models import ProjectMembership
 from apps.narrative.services import parse_fountain_script
 from apps.logistics.tasks import generate_call_sheet_pdf
@@ -2265,6 +2266,111 @@ def delete_vfx_shot(request, shot_id: uuid.UUID):
     shot.delete()
     return {"success": True}
 
+# ---------------------------------------------------------------------------
+# FINANCIALS ROUTER
+# ---------------------------------------------------------------------------
+
+financials_router = Router(tags=["Budgeting & Financials"])
+
+class BudgetAccountOut(Schema):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    account_number: str
+    category: str
+    description: str
+
+class BudgetAccountIn(Schema):
+    account_number: str
+    category: str
+    description: str
+
+class LineItemOut(Schema):
+    id: uuid.UUID
+    account_id: uuid.UUID
+    description: str
+    amount: float
+    currency: str
+    is_actual: bool
+
+class LineItemIn(Schema):
+    description: str
+    amount: float
+    currency: str = "USD"
+    is_actual: bool = False
+
+@financials_router.get("/projects/{project_id}/budget-summary")
+def get_budget_summary(request, project_id: uuid.UUID):
+    accounts = BudgetAccount.objects.filter(project_id=project_id).prefetch_related('line_items')
+    
+    summary = {
+        'ATL': {'estimated': 0, 'actual': 0},
+        'BTL_PRODUCTION': {'estimated': 0, 'actual': 0},
+        'BTL_POST': {'estimated': 0, 'actual': 0},
+        'OTHER': {'estimated': 0, 'actual': 0},
+        'accounts': []
+    }
+    
+    for account in accounts:
+        estimated = sum(item.amount for item in account.line_items.all() if not item.is_actual)
+        actual = sum(item.amount for item in account.line_items.all() if item.is_actual)
+        
+        if account.category in summary:
+            summary[account.category]['estimated'] += float(estimated)
+            summary[account.category]['actual'] += float(actual)
+            
+        summary['accounts'].append({
+            'id': str(account.id),
+            'account_number': account.account_number,
+            'category': account.category,
+            'description': account.description,
+            'estimated': float(estimated),
+            'actual': float(actual),
+        })
+        
+    return summary
+
+@financials_router.post("/projects/{project_id}/accounts", response=BudgetAccountOut)
+def create_budget_account(request, project_id: uuid.UUID, payload: BudgetAccountIn):
+    project = get_object_or_404(Project, id=project_id)
+    return BudgetAccount.objects.create(project=project, **payload.dict())
+
+@financials_router.patch("/accounts/{account_id}", response=BudgetAccountOut)
+def update_budget_account(request, account_id: uuid.UUID, payload: BudgetAccountIn):
+    account = get_object_or_404(BudgetAccount, id=account_id)
+    for attr, value in payload.dict().items():
+        setattr(account, attr, value)
+    account.save()
+    return account
+
+@financials_router.delete("/accounts/{account_id}")
+def delete_budget_account(request, account_id: uuid.UUID):
+    account = get_object_or_404(BudgetAccount, id=account_id)
+    account.delete()
+    return {"success": True}
+
+@financials_router.get("/accounts/{account_id}/items", response=List[LineItemOut])
+def list_line_items(request, account_id: uuid.UUID):
+    return LineItem.objects.filter(account_id=account_id)
+
+@financials_router.post("/accounts/{account_id}/items", response=LineItemOut)
+def create_line_item(request, account_id: uuid.UUID, payload: LineItemIn):
+    account = get_object_or_404(BudgetAccount, id=account_id)
+    return LineItem.objects.create(account=account, **payload.dict())
+
+@financials_router.patch("/items/{item_id}", response=LineItemOut)
+def update_line_item(request, item_id: uuid.UUID, payload: LineItemIn):
+    item = get_object_or_404(LineItem, id=item_id)
+    for attr, value in payload.dict().items():
+        setattr(item, attr, value)
+    item.save()
+    return item
+
+@financials_router.delete("/items/{item_id}")
+def delete_line_item(request, item_id: uuid.UUID):
+    item = get_object_or_404(LineItem, id=item_id)
+    item.delete()
+    return {"success": True}
+
 # Register routers on unified api instance
 api.add_router("/studio", studio_router)
 api.add_router("/narrative", narrative_router)
@@ -2272,3 +2378,4 @@ api.add_router("/shots", shots_router)
 api.add_router("/breakdown", breakdown_router)
 api.add_router("/logistics", logistics_router)
 api.add_router("/vfx", vfx_router)
+api.add_router("/financials", financials_router)
