@@ -119,9 +119,11 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
                 }`}
               >
                 {msg.role === 'ai' ? (
-                  <ReactMarkdown className="prose prose-sm prose-invert max-w-none break-words" remarkPlugins={[remarkGfm]}>
-                    {msg.content}
-                  </ReactMarkdown>
+                  <div className="prose prose-sm prose-invert max-w-none break-words text-gray-100">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
                 ) : (
                   msg.content
                 )}
