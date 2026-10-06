@@ -10,7 +10,8 @@ import {
   Layers,
   Sparkles,
   Users,
-  Wand2
+  Wand2,
+  DollarSign
 } from 'lucide-react';
 
 interface SubHeaderBarProps {
@@ -56,6 +57,12 @@ export function SubHeaderBar({ projectId }: SubHeaderBarProps) {
       href: `/projects/${projectId}/vfx`,
       exact: false,
       icon: Wand2,
+    },
+    {
+      label: "Budget & Financials",
+      href: `/projects/${projectId}/budget`,
+      exact: false,
+      icon: DollarSign,
     },
   ];
 

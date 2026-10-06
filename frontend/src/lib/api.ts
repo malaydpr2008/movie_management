@@ -468,6 +468,51 @@ export interface VfxShotIn {
   vendor_name?: string;
 }
 
+export interface BudgetAccountOut {
+  id: string;
+  project_id: string;
+  account_number: string;
+  category: string;
+  description: string;
+}
+
+export interface BudgetAccountIn {
+  account_number: string;
+  category: string;
+  description: string;
+}
+
+export interface LineItemOut {
+  id: string;
+  account_id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  is_actual: boolean;
+}
+
+export interface LineItemIn {
+  description: string;
+  amount: number;
+  currency?: string;
+  is_actual?: boolean;
+}
+
+export interface BudgetSummary {
+  ATL: { estimated: number; actual: number };
+  BTL_PRODUCTION: { estimated: number; actual: number };
+  BTL_POST: { estimated: number; actual: number };
+  OTHER: { estimated: number; actual: number };
+  accounts: {
+    id: string;
+    account_number: string;
+    category: string;
+    description: string;
+    estimated: number;
+    actual: number;
+  }[];
+}
+
 // ---------------------------------------------------------------------------
 // FETCH HELPER
 // ---------------------------------------------------------------------------
@@ -771,6 +816,29 @@ export const api = {
     }),
   deleteVfxShot: (shotId: string) =>
     apiFetch<{ success: boolean }>(`/vfx/shots/${shotId}`, {
+      method: "DELETE",
+    }),
+  getBudgetSummary: (projectId: string) => 
+    apiFetch<BudgetSummary>(`/financials/projects/${projectId}/budget-summary`),
+  createBudgetAccount: (projectId: string, payload: BudgetAccountIn) =>
+    apiFetch<BudgetAccountOut>(`/financials/projects/${projectId}/accounts`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getLineItems: (accountId: string) => 
+    apiFetch<LineItemOut[]>(`/financials/accounts/${accountId}/items`),
+  createLineItem: (accountId: string, payload: LineItemIn) =>
+    apiFetch<LineItemOut>(`/financials/accounts/${accountId}/items`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateLineItem: (itemId: string, payload: LineItemIn) =>
+    apiFetch<LineItemOut>(`/financials/items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteLineItem: (itemId: string) =>
+    apiFetch<{ success: boolean }>(`/financials/items/${itemId}`, {
       method: "DELETE",
     }),
 };
