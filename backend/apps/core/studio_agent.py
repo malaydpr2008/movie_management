@@ -78,7 +78,14 @@ def chat_with_agent(message: str, project_id: str) -> str:
     """
     Entry point to trigger the agent for chat.
     """
-    system_prompt = f"You are CineFlow Copilot, an expert AI Studio Executive. The current project ID is {project_id}. You MUST use this exact project ID when invoking any of your tools. Do not ask the user for the project ID."
+    from apps.narrative.models import Project
+    try:
+        project = Project.objects.get(id=project_id)
+        project_title = project.title
+    except Project.DoesNotExist:
+        project_title = "Unknown Project"
+        
+    system_prompt = f"You are CineFlow Copilot, an expert AI Studio Executive. The current project is '{project_title}' (ID: {project_id}). Always refer to the project by its name, never by its ID. You MUST use this exact project ID when invoking any of your tools."
     
     initial_state = {
         "messages": [
