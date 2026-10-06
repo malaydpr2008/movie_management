@@ -13,7 +13,6 @@ from apps.core.models import ProjectMembership
 from apps.narrative.services import parse_fountain_script
 from apps.logistics.tasks import generate_call_sheet_pdf
 from apps.breakdown.ai_copilot import run_scene_breakdown
-from apps.core.studio_agent import chat_with_agent
 
 api = NinjaAPI(
     title="Movie Management Studio API",
@@ -2391,6 +2390,7 @@ class ChatMessageIn(Schema):
 @ai_router.post("/projects/{project_id}/chat")
 def universal_agent_chat(request, project_id: str, payload: ChatMessageIn):
     try:
+        from apps.core.studio_agent import chat_with_agent
         response_string = chat_with_agent(payload.message, project_id)
         return {"reply": response_string}
     except Exception as e:
