@@ -449,6 +449,25 @@ export interface CrewMemberIn {
   phone?: string;
 }
 
+export interface VfxShotOut {
+  id: string;
+  scene_id: string;
+  vfx_id: string;
+  status: string;
+  description: string;
+  frame_count: number;
+  vendor_name: string;
+}
+
+export interface VfxShotIn {
+  scene_id: string;
+  vfx_id: string;
+  status: string;
+  description: string;
+  frame_count?: number;
+  vendor_name?: string;
+}
+
 // ---------------------------------------------------------------------------
 // FETCH HELPER
 // ---------------------------------------------------------------------------
@@ -732,6 +751,26 @@ export const api = {
     }),
   deleteCrewMember: (crewId: string) =>
     apiFetch<{ success: boolean }>(`/logistics/crew/${crewId}`, {
+      method: "DELETE",
+    }),
+  getVfxShots: (projectId: string) => apiFetch<VfxShotOut[]>(`/vfx/projects/${projectId}/shots`),
+  createVfxShot: (projectId: string, payload: VfxShotIn) =>
+    apiFetch<VfxShotOut>(`/vfx/projects/${projectId}/shots`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateVfxShot: (shotId: string, payload: VfxShotIn) =>
+    apiFetch<VfxShotOut>(`/vfx/shots/${shotId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  updateVfxShotStatus: (shotId: string, status: string) =>
+    apiFetch<VfxShotOut>(`/vfx/shots/${shotId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  deleteVfxShot: (shotId: string) =>
+    apiFetch<{ success: boolean }>(`/vfx/shots/${shotId}`, {
       method: "DELETE",
     }),
 };

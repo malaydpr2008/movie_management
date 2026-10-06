@@ -9,7 +9,8 @@ import {
   CalendarDays,
   Layers,
   Sparkles,
-  Users
+  Users,
+  Wand2
 } from 'lucide-react';
 
 interface SubHeaderBarProps {
@@ -49,6 +50,12 @@ export function SubHeaderBar({ projectId }: SubHeaderBarProps) {
       href: `/projects/${projectId}/crew`,
       exact: false,
       icon: Users,
+    },
+    {
+      label: "VFX Pipeline",
+      href: `/projects/${projectId}/vfx`,
+      exact: false,
+      icon: Wand2,
     },
   ];
 
