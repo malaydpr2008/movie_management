@@ -671,6 +671,7 @@ export const api = {
 
   // Breakdown
   getSceneBreakdownItems: (sceneId: string) => apiFetch<SceneBreakdownItem[]>(`/breakdown/scenes/${sceneId}/items`),
+  runAiCopilot: (sceneId: string) => apiFetch<{ props_added: number, wardrobe_added: number, vfx_added: number, characters_added: number }>(`/breakdown/scenes/${sceneId}/ai-copilot`, { method: "POST" }),
   addSceneBreakdownItem: (sceneId: string, payload: {
     element_type: string;
     prop_id?: string;

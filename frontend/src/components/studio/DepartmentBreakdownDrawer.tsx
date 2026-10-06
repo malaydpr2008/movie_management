@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Layers,
   Plus,
@@ -47,6 +47,7 @@ export function DepartmentBreakdownDrawer({
   items,
   onItemsUpdated,
 }: DepartmentBreakdownDrawerProps) {
+  const queryClient = useQueryClient();
   const [isLinking, setIsLinking] = useState(false);
   const [elementType, setElementType] = useState<'PROP' | 'WARDROBE' | 'SOUND' | 'SFX' | 'VFX'>('PROP');
   const [selectedPropId, setSelectedPropId] = useState('');
@@ -104,6 +105,20 @@ export function DepartmentBreakdownDrawer({
     }
   };
 
+  const aiCopilotMutation = useMutation({
+    mutationFn: () => api.runAiCopilot(sceneId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['catalogs', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['sceneDetail', sceneId] });
+      onItemsUpdated();
+      const total = data.props_added + data.wardrobe_added + data.vfx_added + data.characters_added;
+      toast.success('AI Analysis Complete', `Successfully extracted and tagged ${total} new elements.`);
+    },
+    onError: (err: any) => {
+      toast.error('AI Extraction Failed', err.message);
+    }
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between pb-3 border-b border-white/5">
@@ -117,13 +132,24 @@ export function DepartmentBreakdownDrawer({
           </p>
         </div>
 
-        <button
-          onClick={() => setIsLinking(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white shadow-sm transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Tag Asset</span>
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => aiCopilotMutation.mutate()}
+            disabled={aiCopilotMutation.isPending}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 disabled:opacity-50 text-xs font-bold text-white shadow-sm transition-all"
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${aiCopilotMutation.isPending ? 'animate-pulse' : ''}`} />
+            <span>{aiCopilotMutation.isPending ? 'Analyzing Script...' : '✨ Auto-Breakdown'}</span>
+          </button>
+          
+          <button
+            onClick={() => setIsLinking(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white shadow-sm transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Tag Asset</span>
+          </button>
+        </div>
       </div>
 
       {/* Continuity Alert Banner */}
