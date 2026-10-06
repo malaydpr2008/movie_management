@@ -62,12 +62,12 @@ workflow.add_edge("action", "agent")
 
 universal_agent = workflow.compile()
 
-def run_universal_agent(project_id: str, prompt: str) -> str:
+def chat_with_agent(message: str, project_id: str) -> str:
     """
-    Entry point to trigger the agent.
+    Entry point to trigger the agent for chat.
     """
     initial_state = {
-        "messages": [HumanMessage(content=prompt)],
+        "messages": [HumanMessage(content=message)],
         "project_id": project_id
     }
     

@@ -13,6 +13,7 @@ from apps.core.models import ProjectMembership
 from apps.narrative.services import parse_fountain_script
 from apps.logistics.tasks import generate_call_sheet_pdf
 from apps.breakdown.ai_copilot import run_scene_breakdown
+from apps.core.studio_agent import chat_with_agent
 
 api = NinjaAPI(
     title="Movie Management Studio API",
@@ -2282,6 +2283,7 @@ def delete_vfx_shot(request, shot_id: uuid.UUID):
 # FINANCIALS ROUTER
 # ---------------------------------------------------------------------------
 
+ai_router = Router(tags=["Universal AI Agent"])
 financials_router = Router(tags=["Budgeting & Financials"])
 
 class BudgetAccountOut(Schema):
@@ -2383,6 +2385,17 @@ def delete_line_item(request, item_id: uuid.UUID):
     item.delete()
     return {"success": True}
 
+class ChatMessageIn(Schema):
+    message: str
+
+@ai_router.post("/projects/{project_id}/chat")
+def universal_agent_chat(request, project_id: str, payload: ChatMessageIn):
+    try:
+        response_string = chat_with_agent(payload.message, project_id)
+        return {"reply": response_string}
+    except Exception as e:
+        raise HttpError(500, str(e))
+
 # Register routers on unified api instance
 api.add_router("/studio", studio_router)
 api.add_router("/narrative", narrative_router)
@@ -2391,3 +2404,4 @@ api.add_router("/breakdown", breakdown_router)
 api.add_router("/logistics", logistics_router)
 api.add_router("/vfx", vfx_router)
 api.add_router("/financials", financials_router)
+api.add_router("/ai", ai_router)
