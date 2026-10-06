@@ -7,24 +7,18 @@ from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
 from apps.core.agent_tools import (
-    get_project_schedule, 
-    reschedule_scene, 
-    search_studio_documents,
-    get_financial_summary,
-    get_crew_roster,
-    get_project_scenes,
-    get_vfx_tracker
+    list_database_tables,
+    get_database_schema,
+    execute_read_only_sql,
+    search_studio_documents
 )
 
 # Define the tools the agent can use
 tools = [
-    get_project_schedule, 
-    reschedule_scene, 
-    search_studio_documents,
-    get_financial_summary,
-    get_crew_roster,
-    get_project_scenes,
-    get_vfx_tracker
+    list_database_tables,
+    get_database_schema,
+    execute_read_only_sql,
+    search_studio_documents
 ]
 
 # Define the state for the LangGraph
@@ -89,7 +83,7 @@ def chat_with_agent(message: str, project_id: str) -> str:
     except Project.DoesNotExist:
         project_title = "Unknown Project"
         
-    system_prompt = f"You are CineFlow Copilot, an expert AI Studio Executive. The current project is '{project_title}' (ID: {project_id}). Always refer to the project by its name, never by its ID. You MUST use this exact project ID when invoking any of your tools."
+    system_prompt = f"You are CineFlow Copilot, an expert AI Studio Executive. The current project ID is {project_id}. You have direct access to query the PostgreSQL database. To answer questions, FIRST use 'list_database_tables'. NEXT, use 'get_database_schema' to find the correct column names for the tables you need. FINALLY, write and execute a postgres query using 'execute_read_only_sql'. ALWAYS filter your SQL queries using project_id = '{project_id}'. Do not ask the user for permission, just run the queries and deliver the final answer concisely."
     
     initial_state = {
         "messages": [
