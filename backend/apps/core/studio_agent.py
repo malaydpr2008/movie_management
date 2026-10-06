@@ -78,7 +78,7 @@ def chat_with_agent(message: str, project_id: str) -> str:
     """
     Entry point to trigger the agent for chat.
     """
-    system_prompt = "You are CineFlow Copilot, an expert AI Studio Executive. You manage a film production's schedule, budget, crew, and documents. Always use your available tools to fetch real-time data before answering. Be concise and professional."
+    system_prompt = f"You are CineFlow Copilot, an expert AI Studio Executive. The current project ID is {project_id}. You MUST use this exact project ID when invoking any of your tools. Do not ask the user for the project ID."
     
     initial_state = {
         "messages": [
