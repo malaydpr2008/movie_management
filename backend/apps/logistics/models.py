@@ -52,3 +52,16 @@ class StripboardItem(TimeStampedModel):
         if self.item_type == 'SCENE' and self.scene:
             return f"Strip: Scene {self.scene.scene_number}"
         return f"Banner: {self.banner_label}"
+
+class DailyProductionReport(TimeStampedModel):
+    shoot_day = models.OneToOneField(ShootDay, on_delete=models.CASCADE, related_name='dpr')
+    actual_first_shot = models.TimeField(null=True, blank=True)
+    actual_wrap = models.TimeField(null=True, blank=True)
+    scenes_completed = models.PositiveIntegerField(default=0)
+    pages_completed = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
+    camera_rolls_used = models.PositiveIntegerField(default=0)
+    sound_rolls_used = models.PositiveIntegerField(default=0)
+    delay_notes = models.TextField(blank=True)
+    
+    def __str__(self):
+        return f"DPR: {self.shoot_day}"

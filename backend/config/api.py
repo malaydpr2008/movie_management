@@ -7,10 +7,9 @@ from pydantic import Field
 from apps.narrative.models import Project, Act, Sequence, Scene
 from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem
 from apps.shots.models import CameraSetup, Shot, Take
-from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem
+from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem, DailyProductionReport
 from apps.core.models import ProjectMembership
 from apps.narrative.services import parse_fountain_script
-from apps.logistics.tasks import generate_call_sheet_pdf
 from apps.logistics.tasks import generate_call_sheet_pdf
 
 api = NinjaAPI(
@@ -2114,6 +2113,48 @@ def get_project_stripboard(request, project_id: uuid.UUID):
             )
         )
     return days_out
+
+# ---------------------------------------------------------------------------
+# DPR ENDPOINTS
+# ---------------------------------------------------------------------------
+
+class DPROut(Schema):
+    id: uuid.UUID
+    shoot_day_id: uuid.UUID
+    actual_first_shot: Optional[str] = None
+    actual_wrap: Optional[str] = None
+    scenes_completed: int
+    pages_completed: float
+    camera_rolls_used: int
+    sound_rolls_used: int
+    delay_notes: str
+
+class DPRIn(Schema):
+    actual_first_shot: Optional[str] = None
+    actual_wrap: Optional[str] = None
+    scenes_completed: int = 0
+    pages_completed: float = 0.0
+    camera_rolls_used: int = 0
+    sound_rolls_used: int = 0
+    delay_notes: str = ""
+
+@logistics_router.get("/shoot-days/{shoot_day_id}/dpr", response=DPROut)
+def get_dpr(request, shoot_day_id: uuid.UUID):
+    dpr, _ = DailyProductionReport.objects.get_or_create(shoot_day_id=shoot_day_id)
+    return dpr
+
+@logistics_router.post("/shoot-days/{shoot_day_id}/dpr", response=DPROut)
+def update_dpr(request, shoot_day_id: uuid.UUID, payload: DPRIn):
+    dpr, _ = DailyProductionReport.objects.get_or_create(shoot_day_id=shoot_day_id)
+    dpr.actual_first_shot = payload.actual_first_shot
+    dpr.actual_wrap = payload.actual_wrap
+    dpr.scenes_completed = payload.scenes_completed
+    dpr.pages_completed = payload.pages_completed
+    dpr.camera_rolls_used = payload.camera_rolls_used
+    dpr.sound_rolls_used = payload.sound_rolls_used
+    dpr.delay_notes = payload.delay_notes
+    dpr.save()
+    return dpr
 
 # Register routers on unified api instance
 api.add_router("/studio", studio_router)
