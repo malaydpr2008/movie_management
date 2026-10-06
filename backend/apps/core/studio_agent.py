@@ -1,15 +1,27 @@
 import json
 import operator
 from typing import TypedDict, Annotated, Sequence
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
-from apps.core.agent_tools import get_project_schedule, reschedule_scene, search_studio_documents
+from apps.core.agent_tools import (
+    get_project_schedule, 
+    reschedule_scene, 
+    search_studio_documents,
+    get_financial_summary,
+    get_crew_roster
+)
 
 # Define the tools the agent can use
-tools = [get_project_schedule, reschedule_scene, search_studio_documents]
+tools = [
+    get_project_schedule, 
+    reschedule_scene, 
+    search_studio_documents,
+    get_financial_summary,
+    get_crew_roster
+]
 
 # Define the state for the LangGraph
 class AgentState(TypedDict):
@@ -65,8 +77,13 @@ def chat_with_agent(message: str, project_id: str) -> str:
     """
     Entry point to trigger the agent for chat.
     """
+    system_prompt = "You are CineFlow Copilot, an expert AI Studio Executive. You manage a film production's schedule, budget, crew, and documents. Always use your available tools to fetch real-time data before answering. Be concise and professional."
+    
     initial_state = {
-        "messages": [HumanMessage(content=message)],
+        "messages": [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=message)
+        ],
         "project_id": project_id
     }
     
