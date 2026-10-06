@@ -11,6 +11,7 @@ export default function RootHomePage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const router = useRouter();
 
@@ -25,17 +26,27 @@ export default function RootHomePage() {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setIsModalOpen(false);
       setNewProjectTitle('');
+      setErrorMessage('');
       router.push(`/projects/${data.id}`);
     },
     onError: (error) => {
-      alert(`Failed to create project: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setErrorMessage(`Failed to create project: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
     if (newProjectTitle.trim()) {
       createProject.mutate(newProjectTitle);
+    }
+  };
+
+  const handleEmergencyBypass = () => {
+    if (projects.length > 0) {
+      router.push(`/projects/${projects[0].id}`);
+    } else {
+      router.push(`/projects/00000000-0000-0000-0000-000000000000`);
     }
   };
 
@@ -118,6 +129,11 @@ export default function RootHomePage() {
                 <p className="text-sm text-slate-400 mt-1">Initialize a new production workspace.</p>
               </div>
               <form onSubmit={handleCreateProject} className="space-y-4">
+                {errorMessage && (
+                  <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+                    {errorMessage}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-300 block">Project Title</label>
                   <input
@@ -144,6 +160,16 @@ export default function RootHomePage() {
                   >
                     {createProject.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                     Create Project
+                  </button>
+                </div>
+                
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={handleEmergencyBypass}
+                    className="text-xs text-slate-500 hover:text-red-400 underline transition-colors"
+                  >
+                    Emergency Bypass (Skip Creation)
                   </button>
                 </div>
               </form>
