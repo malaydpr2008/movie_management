@@ -15,7 +15,8 @@ import {
   GripVertical,
   Flame,
   Wand2,
-  FileDown
+  FileDown,
+  ClipboardList
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -44,6 +45,7 @@ import {
 import AddShootDayModal from './AddShootDayModal';
 import AddBannerModal from './AddBannerModal';
 import { toast } from '@/stores/useToastStore';
+import { DprFormDrawer } from './DprFormDrawer';
 
 interface StripboardViewProps {
   projectId: string;
@@ -232,6 +234,7 @@ export default function StripboardView({
   const [filterLight, setFilterLight] = useState<'ALL' | 'DAY' | 'NIGHT' | 'INT' | 'EXT'>('ALL');
   const [isAddDayOpen, setIsAddDayOpen] = useState(false);
   const [activeBannerDay, setActiveBannerDay] = useState<{ id: string; num: number } | null>(null);
+  const [activeDprDay, setActiveDprDay] = useState<{ id: string; num: number } | null>(null);
 
   // Sync internal state with props if refreshed externally
   React.useEffect(() => {
@@ -520,6 +523,15 @@ export default function StripboardView({
                       <FileDown className="w-3.5 h-3.5" />
                       Call Sheet
                     </button>
+
+                    <button
+                      onClick={() => setActiveDprDay({ id: day.id, num: day.day_number })}
+                      title="Log Daily Production Report"
+                      className="px-2.5 py-1 flex items-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-all text-xs font-bold"
+                    >
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      Log DPR
+                    </button>
                   </div>
                 </div>
 
@@ -575,6 +587,15 @@ export default function StripboardView({
             setActiveBannerDay(null);
             onRefresh();
           }}
+        />
+      )}
+
+      {activeDprDay && (
+        <DprFormDrawer
+          shootDayId={activeDprDay.id}
+          dayNumber={activeDprDay.num}
+          isOpen={Boolean(activeDprDay)}
+          onClose={() => setActiveDprDay(null)}
         />
       )}
     </div>

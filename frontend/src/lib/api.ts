@@ -409,6 +409,28 @@ export interface DoodData {
   daily_working_summary: Record<string, number>;
 }
 
+export interface DPROut {
+  id: string;
+  shoot_day_id: string;
+  actual_first_shot?: string;
+  actual_wrap?: string;
+  scenes_completed: number;
+  pages_completed: number;
+  camera_rolls_used: number;
+  sound_rolls_used: number;
+  delay_notes: string;
+}
+
+export interface DPRIn {
+  actual_first_shot?: string;
+  actual_wrap?: string;
+  scenes_completed?: number;
+  pages_completed?: number;
+  camera_rolls_used?: number;
+  sound_rolls_used?: number;
+  delay_notes?: string;
+}
+
 // ---------------------------------------------------------------------------
 // FETCH HELPER
 // ---------------------------------------------------------------------------
@@ -673,4 +695,10 @@ export const api = {
     }),
   getDoodMatrix: (projectId: string) => apiFetch<DoodData>(`/logistics/projects/${projectId}/dood`),
   getStripboard: (projectId: string) => apiFetch<ShootDay[]>(`/logistics/projects/${projectId}/stripboard`),
+  getDPR: (shootDayId: string) => apiFetch<DPROut>(`/logistics/shoot-days/${shootDayId}/dpr`),
+  updateDPR: (shootDayId: string, payload: DPRIn) =>
+    apiFetch<DPROut>(`/logistics/shoot-days/${shootDayId}/dpr`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
