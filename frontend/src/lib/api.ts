@@ -431,6 +431,24 @@ export interface DPRIn {
   delay_notes?: string;
 }
 
+export interface CrewMemberOut {
+  id: string;
+  project_id: string;
+  name: string;
+  department: string;
+  role: string;
+  email: string;
+  phone: string;
+}
+
+export interface CrewMemberIn {
+  name: string;
+  department: string;
+  role: string;
+  email?: string;
+  phone?: string;
+}
+
 // ---------------------------------------------------------------------------
 // FETCH HELPER
 // ---------------------------------------------------------------------------
@@ -700,5 +718,20 @@ export const api = {
     apiFetch<DPROut>(`/logistics/shoot-days/${shootDayId}/dpr`, {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+  getCrew: (projectId: string) => apiFetch<CrewMemberOut[]>(`/logistics/projects/${projectId}/crew`),
+  createCrewMember: (projectId: string, payload: CrewMemberIn) =>
+    apiFetch<CrewMemberOut>(`/logistics/projects/${projectId}/crew`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateCrewMember: (crewId: string, payload: CrewMemberIn) =>
+    apiFetch<CrewMemberOut>(`/logistics/crew/${crewId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteCrewMember: (crewId: string) =>
+    apiFetch<{ success: boolean }>(`/logistics/crew/${crewId}`, {
+      method: "DELETE",
     }),
 };

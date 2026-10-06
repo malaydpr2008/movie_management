@@ -8,7 +8,8 @@ import {
   Camera,
   CalendarDays,
   Layers,
-  Sparkles
+  Sparkles,
+  Users
 } from 'lucide-react';
 
 interface SubHeaderBarProps {
@@ -42,6 +43,12 @@ export function SubHeaderBar({ projectId }: SubHeaderBarProps) {
       href: `/projects/${projectId}/breakdown`,
       exact: false,
       icon: Layers,
+    },
+    {
+      label: "Crew Roster",
+      href: `/projects/${projectId}/crew`,
+      exact: false,
+      icon: Users,
     },
   ];
 
