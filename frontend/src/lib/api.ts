@@ -860,4 +860,11 @@ export const api = {
     apiFetch<{ success: boolean }>(`/financials/items/${itemId}`, {
       method: "DELETE",
     }),
+
+  // AI Agent
+  sendChatMessage: (projectId: string, message: string) =>
+    apiFetch<{ reply: string }>(`/ai/projects/${projectId}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
 };

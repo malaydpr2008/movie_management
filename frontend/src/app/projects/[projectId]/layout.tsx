@@ -9,6 +9,7 @@ import { SubHeaderBar } from '@/components/navigation/SubHeaderBar';
 import { NarrativeTreeNavigator } from '@/components/navigation/NarrativeTreeNavigator';
 import { useProjectStore } from '@/stores/useProjectStore';
 import { WebSocketProvider } from '@/providers/WebSocketProvider';
+import AIChatWidget from '@/components/studio/AIChatWidget';
 
 export default function ProjectLayout({
   children,
@@ -73,6 +74,9 @@ export default function ProjectLayout({
             {children}
           </main>
         </div>
+        
+        {/* Persistent Floating Chat Widget */}
+        <AIChatWidget projectId={projectId} />
       </div>
     </WebSocketProvider>
   );
