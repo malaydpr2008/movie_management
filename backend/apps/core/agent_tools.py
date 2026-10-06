@@ -1,8 +1,6 @@
 import json
 import uuid
 from langchain_core.tools import tool
-from apps.logistics.models import ShootDay, StripboardItem
-from apps.narrative.models import Project
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from langchain_ollama import OllamaEmbeddings
@@ -14,8 +12,12 @@ def get_project_schedule(project_id: str) -> str:
     Returns a JSON string summarizing the shoot days and the scenes scheduled on each day.
     """
     try:
+        from apps.logistics.models import ShootDay
+        from apps.narrative.models import Project
         project_uuid = uuid.UUID(project_id)
-        shoot_days = ShootDay.objects.filter(project_id=project_uuid).prefetch_related('stripboard_items__scene').order_by('day_number')
+        # Note: project_id might be needed to relate ShootDay. ShootDay usually relates to ProductionUnit which relates to Project.
+        # Ensure project filter works.
+        shoot_days = ShootDay.objects.filter(unit__project_id=project_uuid).prefetch_related('stripboard_items__scene').order_by('day_number')
         
         schedule = []
         for day in shoot_days:
@@ -45,6 +47,7 @@ def reschedule_scene(strip_id: str, target_shoot_day_id: str) -> str:
     Move a scene (represented by a StripboardItem) to a different ShootDay.
     """
     try:
+        from apps.logistics.models import ShootDay, StripboardItem
         strip_uuid = uuid.UUID(strip_id)
         target_day_uuid = uuid.UUID(target_shoot_day_id)
         
