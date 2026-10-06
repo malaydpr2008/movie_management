@@ -4,6 +4,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, X, Send, Loader2, Bot, User } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface AIChatWidgetProps {
   projectId: string;
@@ -110,13 +112,19 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
                 </div>
               )}
               <div
-                className={`max-w-[80%] rounded-2xl p-3 text-sm whitespace-pre-wrap leading-relaxed shadow-sm ${
+                className={`max-w-[80%] rounded-2xl p-3 text-sm whitespace-pre-wrap leading-relaxed shadow-sm overflow-x-auto ${
                   msg.role === 'user'
                     ? 'bg-sky-600 text-white rounded-tr-sm'
                     : 'bg-studio-800 text-slate-200 border border-white/5 rounded-tl-sm'
                 }`}
               >
-                {msg.content}
+                {msg.role === 'ai' ? (
+                  <ReactMarkdown className="prose prose-sm prose-invert max-w-none break-words" remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                ) : (
+                  msg.content
+                )}
               </div>
               {msg.role === 'user' && (
                 <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center flex-shrink-0 text-sky-400">
