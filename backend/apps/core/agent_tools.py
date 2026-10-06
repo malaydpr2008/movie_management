@@ -3,6 +3,9 @@ import uuid
 from langchain_core.tools import tool
 from apps.logistics.models import ShootDay, StripboardItem
 from apps.narrative.models import Project
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
+from langchain_ollama import OllamaEmbeddings
 
 @tool
 def get_project_schedule(project_id: str) -> str:
@@ -56,5 +59,36 @@ def reschedule_scene(strip_id: str, target_shoot_day_id: str) -> str:
         return json.dumps({"error": "StripboardItem not found."})
     except ShootDay.DoesNotExist:
         return json.dumps({"error": "Target ShootDay not found."})
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@tool
+def search_studio_documents(query: str) -> str:
+    """
+    Search across all uploaded studio documents (PDFs, call sheets, continuity notes) 
+    to answer semantic queries using RAG.
+    """
+    try:
+        embeddings = OllamaEmbeddings(
+            model="nomic-embed-text:latest",
+            base_url="http://host.docker.internal:11434"
+        )
+        qdrant_client = QdrantClient(url="http://qdrant:6333")
+        store = QdrantVectorStore(
+            client=qdrant_client,
+            collection_name="studio_documents",
+            embedding=embeddings,
+        )
+        
+        results = store.similarity_search(query, k=4)
+        
+        formatted_results = []
+        for res in results:
+            formatted_results.append({
+                "content": res.page_content,
+                "metadata": res.metadata
+            })
+            
+        return json.dumps(formatted_results)
     except Exception as e:
         return json.dumps({"error": str(e)})

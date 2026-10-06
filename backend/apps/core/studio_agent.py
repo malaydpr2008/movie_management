@@ -6,10 +6,10 @@ from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolExecutor, ToolInvocation, ToolNode
 
-from apps.core.agent_tools import get_project_schedule, reschedule_scene
+from apps.core.agent_tools import get_project_schedule, reschedule_scene, search_studio_documents
 
 # Define the tools the agent can use
-tools = [get_project_schedule, reschedule_scene]
+tools = [get_project_schedule, reschedule_scene, search_studio_documents]
 tool_executor = ToolExecutor(tools)
 
 # Define the state for the LangGraph
