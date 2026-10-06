@@ -70,7 +70,7 @@ def search_studio_documents(query: str) -> str:
     """
     try:
         embeddings = OllamaEmbeddings(
-            model="nomic-embed-text:latest",
+            model="bge-m3:latest",
             base_url="http://host.docker.internal:11434"
         )
         qdrant_client = QdrantClient(url="http://qdrant:6333")

@@ -9,7 +9,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # Initialize local Ollama embeddings model
 embeddings = OllamaEmbeddings(
-    model="nomic-embed-text:latest",
+    model="bge-m3:latest",
     base_url="http://host.docker.internal:11434"
 )
 
@@ -29,6 +29,19 @@ def ingest_document(file_url: str, metadata: dict):
     """
     Downloads a document from MinIO (or any URL), extracts text, chunks it, and ingests into Qdrant.
     """
+    # Ensure Qdrant collection is configured for 1024-dim vectors
+    try:
+        col_info = qdrant_client.get_collection(collection_name)
+        if col_info.config.params.vectors.size != 1024:
+            qdrant_client.delete_collection(collection_name)
+            from qdrant_client.models import VectorParams, Distance
+            qdrant_client.create_collection(
+                collection_name=collection_name,
+                vectors_config=VectorParams(size=1024, distance=Distance.COSINE)
+            )
+    except Exception:
+        pass # Collection might not exist yet, handled by QdrantVectorStore
+
     response = requests.get(file_url, stream=True)
     if response.status_code != 200:
         raise Exception(f"Failed to download document from {file_url}")
