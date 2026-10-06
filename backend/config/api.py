@@ -589,31 +589,31 @@ def list_projects(request):
 
 @studio_router.post("/projects", response=ProjectOut)
 def create_project(request, payload: ProjectCreateIn):
-    slug = payload.slug or payload.title.lower().replace(" ", "-")
-    # ensure unique slug
-    base_slug = slug
-    counter = 1
-    while Project.objects.filter(slug=slug).exists():
-        slug = f"{base_slug}-{counter}"
-        counter += 1
-    project = Project.objects.create(
-        title=payload.title,
-        slug=slug,
-        status=payload.status,
-        aspect_ratio=payload.aspect_ratio,
-        target_runtime_minutes=payload.target_runtime_minutes
-    )
     try:
+        slug = payload.slug or payload.title.lower().replace(" ", "-")
+        # ensure unique slug
+        base_slug = slug
+        counter = 1
+        while Project.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        project = Project.objects.create(
+            title=payload.title,
+            slug=slug,
+            status=payload.status,
+            aspect_ratio=payload.aspect_ratio,
+            target_runtime_minutes=payload.target_runtime_minutes
+        )
         if hasattr(request, 'user') and request.user.is_authenticated:
             ProjectMembership.objects.create(
                 user=request.user,
                 project=project,
                 role='OWNER'
             )
+        return project
     except Exception as e:
-        print(f"Skipping membership assignment: {e}")
-        
-    return project
+        from ninja.errors import HttpError
+        raise HttpError(500, f"Failed to create project: {str(e)}")
 
 # ---------------------------------------------------------------------------
 # ROUTER: NARRATIVE
