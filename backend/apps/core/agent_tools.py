@@ -95,3 +95,59 @@ def search_studio_documents(query: str) -> str:
         return json.dumps(formatted_results)
     except Exception as e:
         return json.dumps({"error": str(e)})
+
+@tool
+def get_financial_summary(project_id: str) -> str:
+    """
+    Retrieve the financial summary for a given project, including total estimated budget,
+    actual costs, and variance.
+    """
+    try:
+        from apps.financials.models import BudgetAccount, LineItem
+        from django.db.models import Sum
+        project_uuid = uuid.UUID(project_id)
+        accounts = BudgetAccount.objects.filter(project_id=project_uuid)
+        
+        # Calculate totals
+        line_items = LineItem.objects.filter(account__in=accounts)
+        
+        estimated_total = sum(item.estimated_rate * item.estimated_quantity * item.estimated_days for item in line_items)
+        actual_total = sum((item.actual_rate or 0) * (item.actual_quantity or 0) * (item.actual_days or 0) for item in line_items)
+        
+        variance = estimated_total - actual_total
+        
+        summary = {
+            "estimated_total": float(estimated_total),
+            "actual_total": float(actual_total),
+            "variance": float(variance)
+        }
+        
+        return json.dumps(summary)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+@tool
+def get_crew_roster(project_id: str) -> str:
+    """
+    Retrieve all crew members for a given project, mapping Departments to a list of Crew names and Roles.
+    """
+    try:
+        from apps.logistics.models import CrewMember
+        project_uuid = uuid.UUID(project_id)
+        crew_members = CrewMember.objects.filter(project_id=project_uuid)
+        
+        roster = {}
+        for member in crew_members:
+            dept = member.department
+            if dept not in roster:
+                roster[dept] = []
+            roster[dept].append({
+                "name": member.name,
+                "role": member.role,
+                "phone": member.phone,
+                "email": member.email
+            })
+            
+        return json.dumps(roster)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
