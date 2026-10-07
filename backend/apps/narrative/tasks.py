@@ -5,10 +5,10 @@ from asgiref.sync import async_to_sync
 from apps.narrative.models import Scene, Project
 from apps.breakdown.models import Character
 from django.core.cache import cache
-from apps.core.models import BackgroundJob
 
 @shared_task
 def batch_script_breakdown(project_id: str, document_text: str):
+    from apps.core.models import BackgroundJob
     job = BackgroundJob.objects.create(task_name="batch_script_breakdown", status="RUNNING")
     try:
         from langchain_ollama import ChatOllama

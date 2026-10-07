@@ -11,7 +11,6 @@ from asgiref.sync import async_to_sync
 
 from apps.logistics.models import ShootDay, StripboardItem
 from apps.breakdown.models import Character
-from apps.core.models import BackgroundJob
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -94,6 +93,7 @@ HTML_TEMPLATE = """
 
 @shared_task
 def generate_call_sheet_pdf(shoot_day_id: str):
+    from apps.core.models import BackgroundJob
     job = BackgroundJob.objects.create(task_name="generate_call_sheet_pdf", status="RUNNING")
     try:
         shoot_day = ShootDay.objects.get(id=shoot_day_id)
@@ -135,6 +135,7 @@ def generate_call_sheet_pdf(shoot_day_id: str):
 
 @shared_task
 def finalize_dpr(shoot_day_id: str):
+    from apps.core.models import BackgroundJob
     job = BackgroundJob.objects.create(task_name="finalize_dpr", status="RUNNING")
     try:
         from channels.layers import get_channel_layer
