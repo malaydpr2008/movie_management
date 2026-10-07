@@ -5,6 +5,8 @@ from ninja import NinjaAPI, Router, Schema, File
 from django.core.cache import cache
 from ninja.files import UploadedFile
 from pydantic import Field
+import boto3
+from django.conf import settings
 
 from apps.narrative.models import Project, Act, Sequence, Scene
 from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem
@@ -2491,6 +2493,28 @@ def approve_breakdown(request, project_id: str, payload: ApproveBreakdownIn):
     except Exception as e:
         from ninja.errors import HttpError
         raise HttpError(500, str(e))
+
+@ai_router.get("/assets")
+def list_assets(request):
+    try:
+        s3 = boto3.client('s3', 
+            endpoint_url=settings.AWS_S3_ENDPOINT_URL, 
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID, 
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
+        objects = s3.list_objects_v2(Bucket=settings.AWS_STORAGE_BUCKET_NAME)
+        files = []
+        if 'Contents' in objects:
+            for obj in objects['Contents']:
+                files.append({
+                    "key": obj['Key'],
+                    "size": obj['Size'],
+                    "last_modified": obj['LastModified'].isoformat(),
+                    "url": f"http://localhost:9000/{settings.AWS_STORAGE_BUCKET_NAME}/{obj['Key']}"
+                })
+        return {"files": files}
+    except Exception as e:
+        return {"error": str(e), "files": []}
 
 # Register routers on unified api instance
 api.add_router("/studio", studio_router)

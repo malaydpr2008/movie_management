@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
+import { FileExplorer } from '@/components/studio/FileExplorer';
 
 export default function AssetsPage({ params }: { params: { projectId: string } }) {
   const { projectId } = params;
@@ -93,7 +94,7 @@ export default function AssetsPage({ params }: { params: { projectId: string } }
   });
 
   const filteredAssets = filter === 'All' ? assets : assets.filter(a => a.type === filter);
-  const tabs = ['All', 'Storyboards', 'Locations', 'Costumes', 'VFX Plates'];
+  const tabs = ['All', 'Storyboards', 'Locations', 'Costumes', 'VFX Plates', 'Cloud Files'];
 
   return (
     <div className="flex-1 flex flex-col h-full bg-studio-950 text-white overflow-hidden">
@@ -138,6 +139,12 @@ export default function AssetsPage({ params }: { params: { projectId: string } }
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {filter === 'Cloud Files' && (
+          <div className="mt-8 border-t border-white/10 pt-8">
+            <FileExplorer />
           </div>
         )}
       </div>

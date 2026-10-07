@@ -880,4 +880,5 @@ export const api = {
       body: JSON.stringify({ scenes }),
     }),
   getBackgroundJobs: () => apiFetch<{ jobs: any[] }>("/ai/jobs"),
+  getAssets: () => apiFetch<{ files: any[], error?: string }>("/ai/assets"),
 };
