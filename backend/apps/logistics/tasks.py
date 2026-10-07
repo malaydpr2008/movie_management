@@ -98,16 +98,20 @@ def generate_call_sheet_pdf(self, shoot_day_id: str):
     try:
         shoot_day = ShootDay.objects.get(id=shoot_day_id)
         
-        # Ensure directory exists
-        os.makedirs(os.path.join(settings.MEDIA_ROOT, 'call_sheets'), exist_ok=True)
-        file_path = os.path.join(settings.MEDIA_ROOT, 'call_sheets', f"call_sheet_day_{shoot_day.day_number}.pdf")
-        
-        # Generate PDF
-        c = canvas.Canvas(file_path)
+        # Generate PDF to in-memory buffer
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer)
         c.drawString(100, 800, f"CALL SHEET - Day {shoot_day.day_number}")
         c.drawString(100, 780, f"Date: {shoot_day.calendar_date}")
         c.drawString(100, 760, f"General Call Time: {shoot_day.general_crew_call}")
         c.save()
+        buffer.seek(0)
+
+        s3_path = f"call_sheets/call_sheet_day_{shoot_day.day_number}.pdf"
+        if default_storage.exists(s3_path):
+            default_storage.delete(s3_path)
+        saved_path = default_storage.save(s3_path, ContentFile(buffer.getvalue()))
+        file_url = default_storage.url(saved_path)
         
         # Notify via WebSocket
         channel_layer = get_channel_layer()
@@ -117,9 +121,13 @@ def generate_call_sheet_pdf(self, shoot_day_id: str):
         )
         
         job.status = "SUCCESS"
-        job.result = {"info": "Task finished successfully", "file": file_path}
+        job.result = {
+            "info": "Task finished successfully",
+            "file": saved_path,
+            "url": file_url
+        }
         job.save()
-        return f"Saved to {file_path}"
+        return f"Saved to {file_url}"
     except Exception as e:
         try:
             self.retry(exc=e)
