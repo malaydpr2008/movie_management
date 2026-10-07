@@ -529,22 +529,14 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
     });
 
     if (!res.ok) {
-      let errorMsg = `API Error [${res.status}] ${url}`;
-      try {
-        const errorData = await res.json();
-        if (errorData.detail) {
-          errorMsg = Array.isArray(errorData.detail) 
-            ? errorData.detail.map((e: any) => `${e.loc?.join('.') || 'Field'}: ${e.msg}`).join(', ')
-            : errorData.detail;
-        } else if (errorData.message) {
-          errorMsg = errorData.message;
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            const errorData = await res.json();
+            throw new Error(errorData.detail || errorData.message || JSON.stringify(errorData));
+        } else {
+            const errorText = await res.text();
+            throw new Error(`HTTP Error ${res.status}: ${errorText.substring(0, 100)}...`);
         }
-      } catch (parseError) {
-        // Fallback if not JSON
-        const errorText = await res.text();
-        if (errorText) errorMsg += `: ${errorText}`;
-      }
-      throw new Error(errorMsg);
     }
 
     return res.json() as Promise<T>;
