@@ -224,3 +224,38 @@ def dispatch_dpr_finalizer(shoot_day_id: str) -> str:
         return "Error: finalize_dpr task not found."
     except Exception as e:
         return f"Failed to dispatch DPR finalizer: {str(e)}"
+
+@tool
+def dispatch_script_breakdown(project_id: str) -> str:
+    """
+    Dispatch a background Celery task to break down a script and write scenes/characters to the database.
+    """
+    try:
+        from langchain_qdrant import QdrantVectorStore
+        from qdrant_client import QdrantClient
+        from langchain_ollama import OllamaEmbeddings
+        from apps.narrative.tasks import batch_script_breakdown
+        
+        embeddings = OllamaEmbeddings(
+            model="hf.co/compendiumlabs/bge-base-en-v1.5-gguf",
+            base_url="http://host.docker.internal:11434"
+        )
+        qdrant_client = QdrantClient(url="http://qdrant:6333")
+        store = QdrantVectorStore(
+            client=qdrant_client,
+            collection_name="studio_documents",
+            embedding=embeddings,
+        )
+        
+        # In a real app we'd fetch the specific script document for this project.
+        # Here we just grab some text from the store to simulate reading the script.
+        results = store.similarity_search("EXT. OR INT.", k=20)
+        raw_script_text = "\n".join([res.page_content for res in results])
+        
+        if not raw_script_text:
+            return "No script documents found in the vector store to break down."
+            
+        batch_script_breakdown.delay(project_id, raw_script_text)
+        return "Successfully dispatched the script breakdown engine. The studio will be notified when the database is populated."
+    except Exception as e:
+        return f"Failed to dispatch script breakdown: {str(e)}"
