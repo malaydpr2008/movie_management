@@ -108,11 +108,7 @@ export function DepartmentBreakdownDrawer({
   const aiCopilotMutation = useMutation({
     mutationFn: () => api.runAiCopilot(sceneId),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['catalogs', projectId] });
-      queryClient.invalidateQueries({ queryKey: ['sceneDetail', sceneId] });
-      onItemsUpdated();
-      const total = data.props_added + data.wardrobe_added + data.vfx_added + data.characters_added;
-      toast.success('AI Analysis Complete', `Successfully extracted and tagged ${total} new elements.`);
+      toast.info('Breakdown Dispatched', 'Breakdown dispatched to background workers. You will be notified when it is ready for review.');
     },
     onError: (err: any) => {
       toast.error('AI Extraction Failed', err.message);

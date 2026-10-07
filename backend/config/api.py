@@ -1362,9 +1362,23 @@ def add_scene_breakdown_item(request, scene_id: uuid.UUID, payload: SceneBreakdo
 
 @breakdown_router.post("/scenes/{scene_id}/ai-copilot")
 def run_ai_copilot_endpoint(request, scene_id: uuid.UUID):
-    # This runs synchronously; in production, wrap in Celery task if it exceeds standard request timeouts
-    summary = run_scene_breakdown(str(scene_id))
-    return summary
+    from apps.narrative.tasks import batch_script_breakdown
+    scene = get_object_or_404(Scene.objects.select_related('sequence__act__project'), id=scene_id)
+    project_id = str(scene.sequence.act.project.id) if scene.sequence and scene.sequence.act else None
+    if not project_id and hasattr(scene, 'project_id'):
+        project_id = str(scene.project_id)
+        
+    # Extract text from script_data blocks if available
+    script_text = ""
+    if scene.script_data and "blocks" in scene.script_data:
+        script_text = "\n".join([b.get("content", "") for b in scene.script_data["blocks"]])
+    elif scene.script_data and "text" in scene.script_data:
+        script_text = scene.script_data["text"]
+    else:
+        script_text = f"{scene.int_ext} {scene.set_name} - {scene.time_of_day}\n(No script text available)"
+        
+    batch_script_breakdown.delay(project_id, script_text)
+    return {"message": "Breakdown dispatched to background workers."}
 
 @breakdown_router.delete("/items/{item_id}")
 def delete_breakdown_item(request, item_id: uuid.UUID):
