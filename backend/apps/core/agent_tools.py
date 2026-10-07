@@ -182,3 +182,31 @@ Logged Elements:
         return response.content
     except Exception as e:
         return json.dumps({"error": str(e)})
+
+@tool
+def dispatch_call_sheet(shoot_day_id: str) -> str:
+    """
+    Dispatch a background Celery task to generate a Call Sheet PDF for a specific shoot day.
+    """
+    try:
+        from apps.logistics.tasks import generate_call_sheet_pdf
+        generate_call_sheet_pdf.delay(shoot_day_id)
+        return f"Successfully dispatched Call Sheet generation for Shoot Day {shoot_day_id} to the background workers."
+    except ImportError:
+        return "Error: generate_call_sheet_pdf task not found."
+    except Exception as e:
+        return f"Failed to dispatch Call Sheet: {str(e)}"
+
+@tool
+def dispatch_dpr_finalizer(shoot_day_id: str) -> str:
+    """
+    Dispatch a background Celery task to finalize the Daily Production Report (DPR) for a specific shoot day.
+    """
+    try:
+        from apps.logistics.tasks import finalize_dpr
+        finalize_dpr.delay(shoot_day_id)
+        return f"Successfully dispatched DPR finalization for Shoot Day {shoot_day_id}."
+    except ImportError:
+        return "Error: finalize_dpr task not found."
+    except Exception as e:
+        return f"Failed to dispatch DPR finalizer: {str(e)}"
