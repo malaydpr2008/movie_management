@@ -2494,6 +2494,27 @@ def approve_breakdown(request, project_id: str, payload: ApproveBreakdownIn):
         from ninja.errors import HttpError
         raise HttpError(500, str(e))
 
+from botocore.exceptions import ClientError
+
+def ensure_bucket_exists(s3, bucket_name):
+    try:
+        s3.head_bucket(Bucket=bucket_name)
+    except ClientError:
+        s3.create_bucket(Bucket=bucket_name)
+        public_policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": ["s3:GetObject"],
+                    "Resource": [f"arn:aws:s3:::{bucket_name}/*"]
+                }
+            ]
+        }
+        import json
+        s3.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(public_policy))
+
 @ai_router.get("/assets")
 def list_assets(request):
     try:
@@ -2502,6 +2523,7 @@ def list_assets(request):
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID, 
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
         )
+        ensure_bucket_exists(s3, settings.AWS_STORAGE_BUCKET_NAME)
         objects = s3.list_objects_v2(Bucket=settings.AWS_STORAGE_BUCKET_NAME)
         files = []
         if 'Contents' in objects:
