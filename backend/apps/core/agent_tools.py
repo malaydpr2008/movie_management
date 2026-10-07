@@ -126,7 +126,6 @@ def analyze_production_image(image_url: str, question: str) -> str:
     from django.conf import settings
     
     try:
-        # Safely extract filename
         filename = image_url.split('/')[-1]
         file_path = os.path.join(settings.MEDIA_ROOT, 'temp_ai_uploads', filename)
         
@@ -136,6 +135,8 @@ def analyze_production_image(image_url: str, question: str) -> str:
         with open(file_path, "rb") as f:
             b64_image = base64.b64encode(f.read()).decode('utf-8')
         
+        mime_type = "image/png" if filename.lower().endswith("png") else "image/jpeg"
+        
         vision_llm = ChatOllama(
             model="hf.co/mrader/Qwen3-VL-8B-Instruct-GGUF:Q4_K_M", 
             base_url="http://host.docker.internal:11434", 
@@ -144,7 +145,7 @@ def analyze_production_image(image_url: str, question: str) -> str:
         
         msg = HumanMessage(content=[
             {"type": "text", "text": question}, 
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}}
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_image}"}}
         ])
         response = vision_llm.invoke([msg])
         return response.content
