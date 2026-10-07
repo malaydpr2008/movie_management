@@ -1,4 +1,8 @@
 import json
+import base64
+import os
+import uuid
+from urllib.parse import urlparse
 from langchain_core.tools import tool
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
@@ -119,8 +123,18 @@ def analyze_production_image(image_url: str, question: str) -> str:
     """
     from langchain_ollama import ChatOllama
     from langchain_core.messages import HumanMessage
+    from django.conf import settings
     
     try:
+        path = urlparse(image_url).path
+        relative_path = path.split('/media/')[-1] if '/media/' in path else path
+        file_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+        
+        with open(file_path, "rb") as f:
+            b64_image = base64.b64encode(f.read()).decode('utf-8')
+        
+        image_data = f"data:image/jpeg;base64,{b64_image}"
+        
         vision_llm = ChatOllama(
             model="hf.co/mrader/Qwen3-VL-8B-Instruct-GGUF:Q4_K_M", 
             base_url="http://host.docker.internal:11434", 
@@ -128,7 +142,7 @@ def analyze_production_image(image_url: str, question: str) -> str:
         )
         msg = HumanMessage(content=[
             {"type": "text", "text": question}, 
-            {"type": "image_url", "image_url": {"url": image_url}}
+            {"type": "image_url", "image_url": {"url": image_data}}
         ])
         response = vision_llm.invoke([msg])
         return response.content
