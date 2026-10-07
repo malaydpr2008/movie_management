@@ -1,7 +1,8 @@
 import uuid
 from typing import List, Optional, Any, Dict
 from django.shortcuts import get_object_or_404
-from ninja import NinjaAPI, Router, Schema
+from ninja import NinjaAPI, Router, Schema, File
+from ninja.files import UploadedFile
 from pydantic import Field
 
 from apps.narrative.models import Project, Act, Sequence, Scene
@@ -2386,12 +2387,30 @@ def delete_line_item(request, item_id: uuid.UUID):
 
 class ChatMessageIn(Schema):
     message: str
+    image_url: Optional[str] = None
+
+@ai_router.post("/upload-temp-image")
+def upload_temp_image(request, file: UploadedFile = File(...)):
+    import os
+    from django.conf import settings
+    os.makedirs(os.path.join(settings.MEDIA_ROOT, 'temp_ai_uploads'), exist_ok=True)
+    file_extension = os.path.splitext(file.name)[1]
+    file_name = f"{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(settings.MEDIA_ROOT, 'temp_ai_uploads', file_name)
+    with open(file_path, 'wb+') as destination:
+        for chunk in file.chunks():
+            destination.write(chunk)
+    absolute_media_url = request.build_absolute_uri(f"{settings.MEDIA_URL}temp_ai_uploads/{file_name}")
+    return {"image_url": absolute_media_url}
 
 @ai_router.post("/projects/{project_id}/chat")
 def universal_agent_chat(request, project_id: str, payload: ChatMessageIn):
     try:
         from apps.core.studio_agent import chat_with_agent
-        response_string = chat_with_agent(payload.message, project_id)
+        msg = payload.message
+        if payload.image_url:
+            msg += f"\n\nImage URL: {payload.image_url}"
+        response_string = chat_with_agent(msg, project_id)
         return {"reply": response_string}
     except Exception as e:
         raise HttpError(500, str(e))

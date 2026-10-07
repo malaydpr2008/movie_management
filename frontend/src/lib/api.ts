@@ -854,9 +854,22 @@ export const api = {
     }),
 
   // AI Agent
-  sendChatMessage: (projectId: string, message: string) =>
+  uploadTempImage: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch(`${API_BASE}/ai/upload-temp-image`, {
+      method: "POST",
+      body: formData,
+    }).then(async (res) => {
+      if (!res.ok) {
+        throw new Error(`Upload Failed: ${res.status}`);
+      }
+      return res.json() as Promise<{ image_url: string }>;
+    });
+  },
+  sendChatMessage: (projectId: string, message: string, image_url?: string | null) =>
     apiFetch<{ reply: string }>(`/ai/projects/${projectId}/chat`, {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, image_url }),
     }),
 };

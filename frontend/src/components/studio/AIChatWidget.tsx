@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, X, Send, Loader2, Bot, User } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, Bot, User, Paperclip } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import ReactMarkdown from 'react-markdown';
@@ -20,7 +20,12 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,7 +38,7 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
   }, [messages, isOpen]);
 
   const sendMessageMutation = useMutation({
-    mutationFn: (message: string) => api.sendChatMessage(projectId, message),
+    mutationFn: (args: { message: string, imageUrl?: string | null }) => api.sendChatMessage(projectId, args.message, args.imageUrl),
     onSuccess: (data) => {
       setMessages((prev) => [...prev, { role: 'ai', content: data.reply }]);
     },
@@ -45,14 +50,49 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
     },
   });
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setIsUploading(true);
+      try {
+        const result = await api.uploadTempImage(file);
+        setUploadedImageUrl(result.image_url);
+      } catch (error) {
+        console.error("Upload failed", error);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const clearAttachment = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setUploadedImageUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if ((!inputValue.trim() && !uploadedImageUrl) || isUploading) return;
 
-    const userMessage = inputValue.trim();
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    let userMessage = inputValue.trim();
+    if (uploadedImageUrl && !userMessage) {
+        userMessage = "Analyze this image.";
+    }
+
+    setMessages((prev) => [
+      ...prev, 
+      { role: 'user', content: userMessage + (uploadedImageUrl ? `\n[Image Attached]` : '') }
+    ]);
+    
     setInputValue('');
-    sendMessageMutation.mutate(userMessage);
+    const currentImageUrl = uploadedImageUrl;
+    clearAttachment();
+    
+    sendMessageMutation.mutate({ message: userMessage, imageUrl: currentImageUrl });
   };
 
   if (!isOpen) {
@@ -152,23 +192,55 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-studio-950 border-t border-white/10">
-        <form onSubmit={handleSend} className="relative flex items-center">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask the Studio Agent..."
-            className="w-full bg-studio-900 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner shadow-black/20"
-            disabled={sendMessageMutation.isPending}
-          />
+      <div className="p-4 bg-studio-950 border-t border-white/10 flex flex-col gap-2">
+        {previewUrl && (
+          <div className="relative w-16 h-16 rounded-md overflow-hidden border border-white/20">
+            <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+            {isUploading && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <Loader2 className="w-4 h-4 text-white animate-spin" />
+              </div>
+            )}
+            <button
+              onClick={clearAttachment}
+              className="absolute top-1 right-1 bg-black/70 rounded-full p-0.5 text-white hover:bg-black"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+        <form onSubmit={handleSend} className="relative flex items-center gap-2">
           <button
-            type="submit"
-            disabled={!inputValue.trim() || sendMessageMutation.isPending}
-            className="absolute right-2 p-2 text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-colors bg-studio-800 hover:bg-studio-700 rounded-lg"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 text-slate-400 hover:text-white transition-colors bg-studio-900 rounded-xl border border-white/10 shadow-inner"
           >
-            <Send className="w-4 h-4" />
+            <Paperclip className="w-5 h-5" />
           </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Ask the Studio Agent..."
+              className="w-full bg-studio-900 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner shadow-black/20"
+              disabled={sendMessageMutation.isPending}
+            />
+            <button
+              type="submit"
+              disabled={(!inputValue.trim() && !uploadedImageUrl) || sendMessageMutation.isPending || isUploading}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-colors bg-studio-800 hover:bg-studio-700 rounded-lg"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
         </form>
       </div>
     </div>
