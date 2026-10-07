@@ -126,28 +126,30 @@ def analyze_production_image(image_url: str, question: str) -> str:
     from django.conf import settings
     
     try:
-        path = urlparse(image_url).path
-        relative_path = path.split('/media/')[-1] if '/media/' in path else path
-        file_path = os.path.join(settings.MEDIA_ROOT, relative_path)
+        # Safely extract filename
+        filename = image_url.split('/')[-1]
+        file_path = os.path.join(settings.MEDIA_ROOT, 'temp_ai_uploads', filename)
         
+        if not os.path.exists(file_path):
+            return f"CRITICAL ERROR: Image file not found on disk at {file_path}"
+            
         with open(file_path, "rb") as f:
             b64_image = base64.b64encode(f.read()).decode('utf-8')
-        
-        image_data = f"data:image/jpeg;base64,{b64_image}"
         
         vision_llm = ChatOllama(
             model="hf.co/mrader/Qwen3-VL-8B-Instruct-GGUF:Q4_K_M", 
             base_url="http://host.docker.internal:11434", 
             temperature=0.1
         )
+        
         msg = HumanMessage(content=[
             {"type": "text", "text": question}, 
-            {"type": "image_url", "image_url": {"url": image_data}}
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}}
         ])
         response = vision_llm.invoke([msg])
         return response.content
     except Exception as e:
-        return f"Vision Analysis Failed: {str(e)}"
+        return f"CRITICAL VISION ERROR: {str(e)}"
 
 @tool
 def audit_scene_breakdown(project_id: str, scene_number: str) -> str:
