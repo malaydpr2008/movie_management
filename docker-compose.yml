@@ -95,9 +95,8 @@ services:
       - backend
 
   minio:
-    image: quay.io/minio/minio:latest
+    image: minio/minio:RELEASE.2024-03-30T09-41-56Z
     container_name: movie_minio
-    restart: unless-stopped
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -107,6 +106,20 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+
+  minio_setup:
+    image: minio/mc:latest
+    container_name: movie_minio_setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 studio_admin studio_password;
+      mc mb myminio/studio-media || true;
+      mc anonymous set download myminio/studio-media;
+      exit 0;
+      "
 
   qdrant:
     image: qdrant/qdrant:latest
