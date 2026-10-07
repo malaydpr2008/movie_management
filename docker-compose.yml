@@ -95,18 +95,18 @@ services:
       - backend
 
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     container_name: movie_minio
     restart: unless-stopped
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password123
+      MINIO_ROOT_USER: "studio_admin"
+      MINIO_ROOT_PASSWORD: "studio_password"
     command: server /data --console-address ":9001"
     volumes:
-      - miniodata:/data
+      - minio_data:/data
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -120,5 +120,5 @@ services:
 
 volumes:
   pgdata:
-  miniodata:
+  minio_data:
   qdrant_data:

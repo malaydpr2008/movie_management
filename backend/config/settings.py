@@ -134,9 +134,17 @@ CHANNEL_LAYERS = {
 }
 
 # AWS S3 / MinIO Settings
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'admin')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', 'password123')
-AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'cineflow-assets')
-AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', 'http://minio:9000')
-AWS_S3_FILE_OVERWRITE = False
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_ACCESS_KEY_ID = "studio_admin"
+AWS_SECRET_ACCESS_KEY = "studio_password"
+AWS_STORAGE_BUCKET_NAME = "studio-media"
+AWS_S3_ENDPOINT_URL = "http://minio:9000"
+AWS_S3_CUSTOM_DOMAIN = "localhost:9000/studio-media"
+AWS_S3_USE_SSL = False
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
