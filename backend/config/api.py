@@ -2497,23 +2497,28 @@ def approve_breakdown(request, project_id: str, payload: ApproveBreakdownIn):
 from botocore.exceptions import ClientError
 
 def ensure_bucket_exists(s3, bucket_name):
+    from botocore.exceptions import ClientError
+    import json
     try:
         s3.head_bucket(Bucket=bucket_name)
     except ClientError:
         s3.create_bucket(Bucket=bucket_name)
-        public_policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Principal": "*",
-                    "Action": ["s3:GetObject"],
-                    "Resource": [f"arn:aws:s3:::{bucket_name}/*"]
-                }
-            ]
-        }
-        import json
+        
+    public_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": ["s3:GetObject"],
+                "Resource": [f"arn:aws:s3:::{bucket_name}/*"]
+            }
+        ]
+    }
+    try:
         s3.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(public_policy))
+    except Exception as e:
+        pass
 
 @ai_router.get("/assets")
 def list_assets(request):
