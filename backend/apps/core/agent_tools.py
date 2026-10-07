@@ -111,3 +111,26 @@ def search_studio_documents(query: str) -> str:
         return json.dumps(formatted_results)
     except Exception as e:
         return json.dumps({"error": str(e)})
+
+@tool
+def analyze_production_image(image_url: str, question: str) -> str:
+    """
+    Analyze a production image (storyboard, costume reference, VFX plate) to answer questions about it.
+    """
+    from langchain_ollama import ChatOllama
+    from langchain_core.messages import HumanMessage
+    
+    try:
+        vision_llm = ChatOllama(
+            model="hf.co/mrader/Qwen3-VL-8B-Instruct-GGUF:Q4_K_M", 
+            base_url="http://host.docker.internal:11434", 
+            temperature=0.1
+        )
+        msg = HumanMessage(content=[
+            {"type": "text", "text": question}, 
+            {"type": "image_url", "image_url": {"url": image_url}}
+        ])
+        response = vision_llm.invoke([msg])
+        return response.content
+    except Exception as e:
+        return f"Vision Analysis Failed: {str(e)}"
