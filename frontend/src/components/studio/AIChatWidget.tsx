@@ -85,10 +85,13 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
     }
 
     const currentImageUrl = uploadedImageUrl;
+    const messageContent = currentImageUrl 
+      ? `${userMessage}\n\n[Attached Image: ${currentImageUrl}]` 
+      : userMessage;
+
     const userMsg: ChatMessage = { 
       role: 'user', 
-      content: userMessage + (currentImageUrl ? `\n[Image Attached]` : ''),
-      image_url: currentImageUrl
+      content: messageContent
     };
     const updatedMessages = [...messages, userMsg];
 
