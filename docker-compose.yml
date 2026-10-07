@@ -95,7 +95,7 @@ services:
       - backend
 
   minio:
-    image: minio/minio
+    image: quay.io/minio/minio
     container_name: movie_minio
     restart: unless-stopped
     ports:
