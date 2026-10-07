@@ -6,8 +6,8 @@ from apps.narrative.models import Scene, Project
 from apps.breakdown.models import Character
 from django.core.cache import cache
 
-@shared_task
-def batch_script_breakdown(project_id: str, document_text: str):
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def batch_script_breakdown(self, project_id: str, document_text: str):
     from apps.core.models import BackgroundJob
     job = BackgroundJob.objects.create(task_name="batch_script_breakdown", status="RUNNING")
     try:
@@ -39,13 +39,16 @@ Text:
         job.result = {"info": "Task finished successfully", "scenes_extracted": len(scenes)}
         job.save()
     except Exception as e:
-        job.status = "FAILED"
-        job.error_message = str(e)
-        job.save()
-        
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "studio_notifications",
-            {"type": "send_notification", "message": f"Task Failed: {str(e)}", "level": "error"}
-        )
-        raise e
+        try:
+            self.retry(exc=e)
+        except self.MaxRetriesExceededError:
+            job.status = "FAILED"
+            job.error_message = str(e)
+            job.save()
+            
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "studio_notifications",
+                {"type": "send_notification", "message": f"Task Failed: {str(e)}", "level": "error"}
+            )
+            raise e

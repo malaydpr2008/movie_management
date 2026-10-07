@@ -91,8 +91,8 @@ HTML_TEMPLATE = """
 </html>
 """
 
-@shared_task
-def generate_call_sheet_pdf(shoot_day_id: str):
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_call_sheet_pdf(self, shoot_day_id: str):
     from apps.core.models import BackgroundJob
     job = BackgroundJob.objects.create(task_name="generate_call_sheet_pdf", status="RUNNING")
     try:
@@ -121,20 +121,23 @@ def generate_call_sheet_pdf(shoot_day_id: str):
         job.save()
         return f"Saved to {file_path}"
     except Exception as e:
-        job.status = "FAILED"
-        job.error_message = str(e)
-        job.save()
-        
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "studio_notifications",
-            {"type": "send_notification", "message": f"Task Failed: {str(e)}", "level": "error"}
-        )
-        raise e
+        try:
+            self.retry(exc=e)
+        except self.MaxRetriesExceededError:
+            job.status = "FAILED"
+            job.error_message = str(e)
+            job.save()
+            
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "studio_notifications",
+                {"type": "send_notification", "message": f"Task Failed: {str(e)}", "level": "error"}
+            )
+            raise e
 
 
-@shared_task
-def finalize_dpr(shoot_day_id: str):
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def finalize_dpr(self, shoot_day_id: str):
     from apps.core.models import BackgroundJob
     job = BackgroundJob.objects.create(task_name="finalize_dpr", status="RUNNING")
     try:
@@ -151,15 +154,18 @@ def finalize_dpr(shoot_day_id: str):
         job.save()
         return True
     except Exception as e:
-        job.status = "FAILED"
-        job.error_message = str(e)
-        job.save()
-        
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            "studio_notifications",
-            {"type": "send_notification", "message": f"Task Failed: {str(e)}", "level": "error"}
-        )
-        raise e
+        try:
+            self.retry(exc=e)
+        except self.MaxRetriesExceededError:
+            job.status = "FAILED"
+            job.error_message = str(e)
+            job.save()
+            
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                "studio_notifications",
+                {"type": "send_notification", "message": f"Task Failed: {str(e)}", "level": "error"}
+            )
+            raise e
