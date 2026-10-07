@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
@@ -51,3 +52,12 @@ class SoftDeleteModel(models.Model):
         self.is_deleted = False
         self.deleted_at = None
         self.save()
+
+class BackgroundJob(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_name = models.CharField(max_length=255)
+    status = models.CharField(max_length=50, default='RUNNING') # RUNNING, SUCCESS, FAILED
+    result = models.JSONField(null=True, blank=True)
+    error_message = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

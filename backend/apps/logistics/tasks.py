@@ -11,6 +11,7 @@ from asgiref.sync import async_to_sync
 
 from apps.logistics.models import ShootDay, StripboardItem
 from apps.breakdown.models import Character
+from apps.core.models import BackgroundJob
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -93,35 +94,71 @@ HTML_TEMPLATE = """
 
 @shared_task
 def generate_call_sheet_pdf(shoot_day_id: str):
-    shoot_day = ShootDay.objects.get(id=shoot_day_id)
-    
-    # Ensure directory exists
-    os.makedirs(os.path.join(settings.MEDIA_ROOT, 'call_sheets'), exist_ok=True)
-    file_path = os.path.join(settings.MEDIA_ROOT, 'call_sheets', f"call_sheet_day_{shoot_day.day_number}.pdf")
-    
-    # Generate PDF
-    c = canvas.Canvas(file_path)
-    c.drawString(100, 800, f"CALL SHEET - Day {shoot_day.day_number}")
-    c.drawString(100, 780, f"Date: {shoot_day.calendar_date}")
-    c.drawString(100, 760, f"General Call Time: {shoot_day.general_crew_call}")
-    c.save()
-    
-    # Notify via WebSocket
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        "studio_notifications",
-        {"type": "send_notification", "message": f"Call Sheet PDF generated for Day {shoot_day.day_number}!", "level": "success", "action": "call_sheet_ready"}
-    )
-    return f"Saved to {file_path}"
+    job = BackgroundJob.objects.create(task_name="generate_call_sheet_pdf", status="RUNNING")
+    try:
+        shoot_day = ShootDay.objects.get(id=shoot_day_id)
+        
+        # Ensure directory exists
+        os.makedirs(os.path.join(settings.MEDIA_ROOT, 'call_sheets'), exist_ok=True)
+        file_path = os.path.join(settings.MEDIA_ROOT, 'call_sheets', f"call_sheet_day_{shoot_day.day_number}.pdf")
+        
+        # Generate PDF
+        c = canvas.Canvas(file_path)
+        c.drawString(100, 800, f"CALL SHEET - Day {shoot_day.day_number}")
+        c.drawString(100, 780, f"Date: {shoot_day.calendar_date}")
+        c.drawString(100, 760, f"General Call Time: {shoot_day.general_crew_call}")
+        c.save()
+        
+        # Notify via WebSocket
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "studio_notifications",
+            {"type": "send_notification", "message": f"Call Sheet PDF generated for Day {shoot_day.day_number}!", "level": "success", "action": "call_sheet_ready"}
+        )
+        
+        job.status = "SUCCESS"
+        job.result = {"info": "Task finished successfully", "file": file_path}
+        job.save()
+        return f"Saved to {file_path}"
+    except Exception as e:
+        job.status = "FAILED"
+        job.error_message = str(e)
+        job.save()
+        
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "studio_notifications",
+            {"type": "send_notification", "message": f"Task Failed: {str(e)}", "level": "error"}
+        )
+        raise e
 
 
 @shared_task
 def finalize_dpr(shoot_day_id: str):
-    from channels.layers import get_channel_layer
-    from asgiref.sync import async_to_sync
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        "studio_notifications",
-        {"type": "send_notification", "message": f"Action Completed: finalize_dpr finished successfully.", "level": "success"}
-    )
-    return True
+    job = BackgroundJob.objects.create(task_name="finalize_dpr", status="RUNNING")
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "studio_notifications",
+            {"type": "send_notification", "message": f"Action Completed: finalize_dpr finished successfully.", "level": "success"}
+        )
+        
+        job.status = "SUCCESS"
+        job.result = {"info": "Task finished successfully"}
+        job.save()
+        return True
+    except Exception as e:
+        job.status = "FAILED"
+        job.error_message = str(e)
+        job.save()
+        
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            "studio_notifications",
+            {"type": "send_notification", "message": f"Task Failed: {str(e)}", "level": "error"}
+        )
+        raise e

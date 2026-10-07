@@ -11,7 +11,7 @@ from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, 
 from apps.shots.models import CameraSetup, Shot, Take, VfxShot
 from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem, DailyProductionReport, CrewMember
 from apps.financials.models import BudgetAccount, LineItem
-from apps.core.models import ProjectMembership
+from apps.core.models import ProjectMembership, BackgroundJob
 from apps.narrative.services import parse_fountain_script
 from apps.logistics.tasks import generate_call_sheet_pdf
 from apps.breakdown.ai_copilot import run_scene_breakdown
@@ -2436,6 +2436,15 @@ def universal_agent_chat(request, project_id: str, payload: ChatHistoryIn):
         return {"reply": response_string}
     except Exception as e:
         raise HttpError(500, str(e))
+
+@ai_router.get("/jobs")
+def list_jobs(request):
+    jobs = BackgroundJob.objects.all().order_by("-created_at")[:50]
+    return {"jobs": [
+        {"id": str(j.id), "task_name": j.task_name, "status": j.status, 
+         "result": j.result, "error_message": j.error_message, 
+         "created_at": j.created_at.isoformat()} for j in jobs
+    ]}
 
 @ai_router.get("/projects/{project_id}/pending-breakdown")
 def get_pending_breakdown(request, project_id: str):
