@@ -10,6 +10,7 @@ import { NarrativeTreeNavigator } from '@/components/navigation/NarrativeTreeNav
 import { useProjectStore } from '@/stores/useProjectStore';
 import { WebSocketProvider } from '@/providers/WebSocketProvider';
 import AIChatWidget from '@/components/studio/AIChatWidget';
+import { BreakdownReviewModal } from '@/components/studio/BreakdownReviewModal';
 
 export default function ProjectLayout({
   children,
@@ -77,6 +78,9 @@ export default function ProjectLayout({
         
         {/* Persistent Floating Chat Widget */}
         <AIChatWidget projectId={projectId} />
+        
+        {/* Breakdown Review Modal */}
+        <BreakdownReviewModal projectId={projectId} />
       </div>
     </WebSocketProvider>
   );

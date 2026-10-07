@@ -77,6 +77,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
             type: data.level || 'info'
           });
         }
+        
+        if (data.action === "review_breakdown") {
+          window.dispatchEvent(new CustomEvent("open-breakdown-review"));
+        }
       } catch (e) {
         console.error('[WebSocket] Failed to parse global notification', e);
       }

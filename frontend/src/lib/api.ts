@@ -872,4 +872,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ messages }),
     }),
+  getPendingBreakdown: (projectId: string) =>
+    apiFetch<{ data: { scenes: any[] } | null }>(`/ai/projects/${projectId}/pending-breakdown`),
+  approveBreakdown: (projectId: string, scenes: any[]) =>
+    apiFetch<{ status: string }>(`/ai/projects/${projectId}/approve-breakdown`, {
+      method: "POST",
+      body: JSON.stringify({ scenes }),
+    }),
 };
