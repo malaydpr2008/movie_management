@@ -11,6 +11,7 @@ import { useProjectStore } from '@/stores/useProjectStore';
 import { WebSocketProvider } from '@/providers/WebSocketProvider';
 import AIChatWidget from '@/components/studio/AIChatWidget';
 import { BreakdownReviewModal } from '@/components/studio/BreakdownReviewModal';
+import { JobMonitor } from '@/components/studio/JobMonitor';
 
 export default function ProjectLayout({
   children,
@@ -81,6 +82,9 @@ export default function ProjectLayout({
         
         {/* Breakdown Review Modal */}
         <BreakdownReviewModal projectId={projectId} />
+
+        {/* Global Job Monitor */}
+        <JobMonitor />
       </div>
     </WebSocketProvider>
   );

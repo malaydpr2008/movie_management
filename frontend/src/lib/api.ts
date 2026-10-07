@@ -879,4 +879,5 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ scenes }),
     }),
+  getBackgroundJobs: () => apiFetch<{ jobs: any[] }>("/ai/jobs"),
 };
