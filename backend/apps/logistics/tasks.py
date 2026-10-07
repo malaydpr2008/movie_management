@@ -1,8 +1,13 @@
 import io
+import os
+from django.conf import settings
 from celery import shared_task
 from jinja2 import Template
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from reportlab.pdfgen import canvas
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 from apps.logistics.models import ShootDay, StripboardItem
 from apps.breakdown.models import Character
@@ -89,48 +94,26 @@ HTML_TEMPLATE = """
 @shared_task
 def generate_call_sheet_pdf(shoot_day_id: str):
     shoot_day = ShootDay.objects.get(id=shoot_day_id)
-    unit = shoot_day.unit
-    strips = StripboardItem.objects.filter(shoot_day=shoot_day).order_by('order_index').select_related('scene')
     
-    # Get cast working on this day (simplified: characters in the scenes of this shoot day)
-    scene_ids = [strip.scene.id for strip in strips if strip.item_type == 'SCENE' and strip.scene]
-    # Characters are linked via SceneBreakdownItem in a real complex schema, 
-    # but here we'll just grab characters linked to the project for demo if they have no explicit linkage,
-    # or just fetch all characters for the project for the proof of concept.
-    cast_list = Character.objects.filter(project=unit.project)
+    # Ensure directory exists
+    os.makedirs(os.path.join(settings.MEDIA_ROOT, 'call_sheets'), exist_ok=True)
+    file_path = os.path.join(settings.MEDIA_ROOT, 'call_sheets', f"call_sheet_day_{shoot_day.day_number}.pdf")
     
-    template = Template(HTML_TEMPLATE)
-    context = {
-        'unit_name': unit.name,
-        'day_number': shoot_day.day_number,
-        'calendar_date': shoot_day.calendar_date.strftime('%A, %B %d, %Y') if shoot_day.calendar_date else '',
-        'crew_call': shoot_day.general_crew_call.strftime('%H:%M') if shoot_day.general_crew_call else 'TBD',
-        'shooting_call': shoot_day.shooting_call.strftime('%H:%M') if shoot_day.shooting_call else 'TBD',
-        'hospital': shoot_day.hospital_address,
-        'strips': strips,
-        'cast_list': cast_list
-    }
+    # Generate PDF
+    c = canvas.Canvas(file_path)
+    c.drawString(100, 800, f"CALL SHEET - Day {shoot_day.day_number}")
+    c.drawString(100, 780, f"Date: {shoot_day.calendar_date}")
+    c.drawString(100, 760, f"General Call Time: {shoot_day.general_crew_call}")
+    c.save()
     
-    html_out = template.render(context)
-    
-    from weasyprint import HTML
-    pdf_file = HTML(string=html_out).write_pdf()
-    
-    filename = f"call_sheets/call_sheet_day_{shoot_day.day_number}_{shoot_day.id}.pdf"
-    
-    # Save using default_storage (MinIO)
-    saved_path = default_storage.save(filename, ContentFile(pdf_file))
-    url = default_storage.url(saved_path)
-    
-    from channels.layers import get_channel_layer
-    from asgiref.sync import async_to_sync
+    # Notify via WebSocket
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
         "studio_notifications",
-        {"type": "send_notification", "message": f"Action Completed: generate_call_sheet_pdf finished successfully.", "level": "success"}
+        {"type": "send_notification", "message": f"Call Sheet PDF generated for Day {shoot_day.day_number}!", "level": "success", "action": "call_sheet_ready"}
     )
-    
-    return url
+    return f"Saved to {file_path}"
+
 
 @shared_task
 def finalize_dpr(shoot_day_id: str):
