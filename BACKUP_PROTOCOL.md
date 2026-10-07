@@ -1,1 +1,1 @@
-MAINTENANCE RULE: After resolving major features or bugs, the agent MUST execute `git archive --format=zip -o C:/AI/project_review/movie_management/latest_movie_management.zip HEAD` to ensure the user has an up-to-date, git-ignored snapshot for local analysis.
+MAINTENANCE RULE: At the very end of EVERY SINGLE PROMPT and interaction (not just major features), the agent MUST run `git archive --format=zip -o C:/AI/project_review/movie_management/latest_movie_management.zip HEAD` to generate the zip. This is a mandatory continuous tracking requirement.

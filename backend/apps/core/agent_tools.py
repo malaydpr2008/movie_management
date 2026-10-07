@@ -138,14 +138,14 @@ def analyze_production_image(image_url: str, question: str) -> str:
         mime_type = "image/png" if filename.lower().endswith("png") else "image/jpeg"
         
         vision_llm = ChatOllama(
-            model="hf.co/mrader/Qwen3-VL-8B-Instruct-GGUF:Q4_K_M", 
+            model="hf.co/mradermacher/Qwen3-VL-8B-Instruct-GGUF:Q4_K_M", 
             base_url="http://host.docker.internal:11434", 
             temperature=0.1
         )
         
         msg = HumanMessage(content=[
             {"type": "text", "text": question}, 
-            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_image}"}}
+            {"type": "image_url", "image_url": f"data:{mime_type};base64,{b64_image}"}
         ])
         response = vision_llm.invoke([msg])
         return response.content
