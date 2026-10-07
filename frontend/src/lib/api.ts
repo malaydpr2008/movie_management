@@ -867,9 +867,9 @@ export const api = {
       return res.json() as Promise<{ image_url: string }>;
     });
   },
-  sendChatMessage: (projectId: string, message: string, image_url?: string | null) =>
+  sendChatMessage: (projectId: string, messages: {role: string, content: string, image_url?: string | null}[]) =>
     apiFetch<{ reply: string }>(`/ai/projects/${projectId}/chat`, {
       method: "POST",
-      body: JSON.stringify({ message, image_url }),
+      body: JSON.stringify({ messages }),
     }),
 };

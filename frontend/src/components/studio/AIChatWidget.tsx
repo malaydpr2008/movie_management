@@ -14,6 +14,7 @@ interface AIChatWidgetProps {
 interface ChatMessage {
   role: 'user' | 'ai';
   content: string;
+  image_url?: string | null;
 }
 
 export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
@@ -38,7 +39,7 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
   }, [messages, isOpen]);
 
   const sendMessageMutation = useMutation({
-    mutationFn: (args: { message: string, imageUrl?: string | null }) => api.sendChatMessage(projectId, args.message, args.imageUrl),
+    mutationFn: (args: { messages: ChatMessage[] }) => api.sendChatMessage(projectId, args.messages),
     onSuccess: (data) => {
       setMessages((prev) => [...prev, { role: 'ai', content: data.reply }]);
     },
@@ -83,16 +84,20 @@ export default function AIChatWidget({ projectId }: AIChatWidgetProps) {
         userMessage = "Analyze this image.";
     }
 
-    setMessages((prev) => [
-      ...prev, 
-      { role: 'user', content: userMessage + (uploadedImageUrl ? `\n[Image Attached]` : '') }
-    ]);
+    const currentImageUrl = uploadedImageUrl;
+    const userMsg: ChatMessage = { 
+      role: 'user', 
+      content: userMessage + (currentImageUrl ? `\n[Image Attached]` : ''),
+      image_url: currentImageUrl
+    };
+    const updatedMessages = [...messages, userMsg];
+
+    setMessages(updatedMessages);
     
     setInputValue('');
-    const currentImageUrl = uploadedImageUrl;
     clearAttachment();
     
-    sendMessageMutation.mutate({ message: userMessage, imageUrl: currentImageUrl });
+    sendMessageMutation.mutate({ messages: updatedMessages });
   };
 
   if (!isOpen) {
