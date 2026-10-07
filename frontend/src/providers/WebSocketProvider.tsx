@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
+import { useToastStore } from '@/stores/useToastStore';
 
 interface WebSocketContextType {
   isConnected: boolean;
@@ -24,8 +25,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     // Use dynamic host based on current window location for flexibility, fallback to localhost
     const wsHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
     const wsUrl = `ws://${wsHost}:8000/ws/projects/${projectId}/`;
+    const notificationsWsUrl = `ws://${wsHost}:8000/ws/notifications/`;
     
     const ws = new WebSocket(wsUrl);
+    const notifWs = new WebSocket(notificationsWsUrl);
 
     ws.onopen = () => {
       console.log(`[WebSocket] Connected to project ${projectId}`);
@@ -60,8 +63,29 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       setIsConnected(false);
     };
 
+    notifWs.onopen = () => {
+      console.log(`[WebSocket] Connected to global notifications`);
+    };
+
+    notifWs.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[WebSocket] Global Notification received:', data);
+        if (data.message) {
+          useToastStore.getState().addToast(data.message, data.level || 'info');
+        }
+      } catch (e) {
+        console.error('[WebSocket] Failed to parse global notification', e);
+      }
+    };
+
+    notifWs.onclose = () => {
+      console.log(`[WebSocket] Disconnected from global notifications`);
+    };
+
     return () => {
       ws.close();
+      notifWs.close();
     };
   }, [projectId, queryClient]);
 

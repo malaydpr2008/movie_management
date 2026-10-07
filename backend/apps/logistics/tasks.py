@@ -122,4 +122,23 @@ def generate_call_sheet_pdf(shoot_day_id: str):
     saved_path = default_storage.save(filename, ContentFile(pdf_file))
     url = default_storage.url(saved_path)
     
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        "studio_notifications",
+        {"type": "send_notification", "message": f"Action Completed: generate_call_sheet_pdf finished successfully.", "level": "success"}
+    )
+    
     return url
+
+@shared_task
+def finalize_dpr(shoot_day_id: str):
+    from channels.layers import get_channel_layer
+    from asgiref.sync import async_to_sync
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        "studio_notifications",
+        {"type": "send_notification", "message": f"Action Completed: finalize_dpr finished successfully.", "level": "success"}
+    )
+    return True
