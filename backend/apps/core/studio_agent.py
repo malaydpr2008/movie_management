@@ -11,7 +11,8 @@ from apps.core.agent_tools import (
     get_database_schema,
     execute_read_only_sql,
     search_studio_documents,
-    analyze_production_image
+    analyze_production_image,
+    audit_scene_breakdown
 )
 
 # Define the tools the agent can use
@@ -20,7 +21,8 @@ tools = [
     get_database_schema,
     execute_read_only_sql,
     search_studio_documents,
-    analyze_production_image
+    analyze_production_image,
+    audit_scene_breakdown
 ]
 
 # Define the state for the LangGraph
@@ -85,7 +87,7 @@ def chat_with_agent(message: str, project_id: str) -> str:
     except Project.DoesNotExist:
         project_title = "Unknown Project"
         
-    system_prompt = f"You are CineFlow Copilot, an expert AI Studio Executive. The current project ID is {project_id}. You have direct access to query the PostgreSQL database. To answer questions, FIRST use 'list_database_tables'. NEXT, use 'get_database_schema' to find the correct column names for the tables you need. FINALLY, write and execute a postgres query using 'execute_read_only_sql'. ALWAYS filter your SQL queries using project_id = '{project_id}'. Do not ask the user for permission, just run the queries and deliver the final answer concisely. You also have a vision tool. If the user asks about an image, photo, or storyboard, or provides an image URL, use 'analyze_production_image' to look at it and answer their question."
+    system_prompt = f"You are CineFlow Copilot, an expert AI Studio Executive. The current project ID is {project_id}. You have direct access to query the PostgreSQL database. To answer questions, FIRST use 'list_database_tables'. NEXT, use 'get_database_schema' to find the correct column names for the tables you need. FINALLY, write and execute a postgres query using 'execute_read_only_sql'. ALWAYS filter your SQL queries using project_id = '{project_id}'. Do not ask the user for permission, just run the queries and deliver the final answer concisely. You also have a vision tool. If the user asks about an image, photo, or storyboard, or provides an image URL, use 'analyze_production_image' to look at it and answer their question. If the user asks to verify, audit, or check the completeness of a scene's breakdown, use 'audit_scene_breakdown'."
     
     initial_state = {
         "messages": [

@@ -134,3 +134,51 @@ def analyze_production_image(image_url: str, question: str) -> str:
         return response.content
     except Exception as e:
         return f"Vision Analysis Failed: {str(e)}"
+
+@tool
+def audit_scene_breakdown(project_id: str, scene_number: str) -> str:
+    """
+    Cross-check a scene's raw script text against logged database assets to isolate discrepancies
+    such as unlogged props, wardrobe, or VFX requirements.
+    """
+    try:
+        from apps.narrative.models import Scene
+        from apps.breakdown.models import SceneBreakdownItem
+        from apps.shots.models import VfxShot
+        from langchain_ollama import ChatOllama
+        from langchain_core.messages import HumanMessage
+        
+        project_uuid = uuid.UUID(project_id)
+        scene = Scene.objects.get(sequence__act__project_id=project_uuid, scene_number=str(scene_number))
+        
+        script_text = ""
+        if scene.script_data and "blocks" in scene.script_data:
+            script_text = "\n".join([b.get("content", "") for b in scene.script_data["blocks"]])
+            
+        breakdown_items = SceneBreakdownItem.objects.filter(scene=scene)
+        logged_elements = [f"{item.element_type}: {item.prop.name if item.prop else (item.costume_look.description if item.costume_look else item.custom_notes)}" for item in breakdown_items]
+        
+        vfx_shots = VfxShot.objects.filter(scene=scene)
+        for vfx in vfx_shots:
+            logged_elements.append(f"VFX: {vfx.description}")
+            
+        llm = ChatOllama(model="qwen3.5:9b", base_url="http://host.docker.internal:11434", temperature=0.1)
+        
+        prompt = f"""
+You are an expert Script Auditor. Review the following scene script and the list of currently logged elements (Props, Wardrobe, VFX).
+Identify any physical props, wardrobe, or VFX requirements mentioned in the script that are MISSING from the logged elements list.
+Return ONLY a valid JSON object with the following keys: missing_props, unlogged_vfx_cues, continuity_warnings. 
+The values should be lists of strings.
+
+Scene Synopsis: {scene.synopsis}
+Script Text:
+{script_text}
+
+Logged Elements:
+{chr(10).join(logged_elements)}
+"""
+        msg = HumanMessage(content=prompt)
+        response = llm.invoke([msg])
+        return response.content
+    except Exception as e:
+        return json.dumps({"error": str(e)})
