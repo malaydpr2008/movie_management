@@ -2385,9 +2385,13 @@ def delete_line_item(request, item_id: uuid.UUID):
     item.delete()
     return {"success": True}
 
-class ChatMessageIn(Schema):
-    message: str
+class ChatMessageDict(Schema):
+    role: str
+    content: str
     image_url: Optional[str] = None
+
+class ChatHistoryIn(Schema):
+    messages: list[ChatMessageDict]
 
 @ai_router.post("/upload-temp-image")
 def upload_temp_image(request, file: UploadedFile = File(...)):
@@ -2404,13 +2408,16 @@ def upload_temp_image(request, file: UploadedFile = File(...)):
     return {"image_url": absolute_media_url}
 
 @ai_router.post("/projects/{project_id}/chat")
-def universal_agent_chat(request, project_id: str, payload: ChatMessageIn):
+def universal_agent_chat(request, project_id: str, payload: ChatHistoryIn):
     try:
         from apps.core.studio_agent import chat_with_agent
-        msg = payload.message
-        if payload.image_url:
-            msg += f"\n\nImage URL: {payload.image_url}"
-        response_string = chat_with_agent(msg, project_id)
+        
+        # Look for image_url in the last message
+        last_msg = payload.messages[-1]
+        if last_msg.image_url:
+            last_msg.content += f"\n\nImage URL: {last_msg.image_url}"
+            
+        response_string = chat_with_agent(payload.messages, project_id)
         return {"reply": response_string}
     except Exception as e:
         raise HttpError(500, str(e))

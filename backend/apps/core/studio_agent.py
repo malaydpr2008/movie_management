@@ -82,7 +82,7 @@ def get_universal_agent():
 
     return workflow.compile()
 
-def chat_with_agent(message: str, project_id: str) -> str:
+def chat_with_agent(messages_in: list, project_id: str) -> str:
     """
     Entry point to trigger the agent for chat.
     """
@@ -95,11 +95,21 @@ def chat_with_agent(message: str, project_id: str) -> str:
         
     system_prompt = f"You are CineFlow Copilot, an expert AI Studio Executive. The current project ID is {project_id}. You have direct access to query the PostgreSQL database. To answer questions, FIRST use 'list_database_tables'. NEXT, use 'get_database_schema' to find the correct column names for the tables you need. FINALLY, write and execute a postgres query using 'execute_read_only_sql'. ALWAYS filter your SQL queries using project_id = '{project_id}'. Do not ask the user for permission, just run the queries and deliver the final answer concisely. You also have a vision tool. If the user asks about an image, photo, or storyboard, or provides an image URL, use 'analyze_production_image' to look at it and answer their question. If the user asks to verify, audit, or check the completeness of a scene's breakdown, use 'audit_scene_breakdown'. You now have execution authority. If the user asks to generate, email, or finalize a Call Sheet or DPR (Daily Production Report), FIRST find the correct shoot_day_id using your SQL tools, THEN use 'dispatch_call_sheet' or 'dispatch_dpr_finalizer' to execute the request. Do not tell the user you cannot perform actions; always use your dispatch tools. If the user asks to ingest, break down, or parse a script/screenplay, use 'dispatch_script_breakdown'. Do not parse it manually."
     
+    from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+    
+    langchain_messages = [SystemMessage(content=system_prompt)]
+    
+    for msg in messages_in:
+        content = msg.content if hasattr(msg, 'content') else msg.get("content")
+        role = msg.role if hasattr(msg, 'role') else msg.get("role")
+        
+        if role == "user":
+            langchain_messages.append(HumanMessage(content=content))
+        else:
+            langchain_messages.append(AIMessage(content=content))
+            
     initial_state = {
-        "messages": [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=message)
-        ],
+        "messages": langchain_messages,
         "project_id": project_id
     }
     
