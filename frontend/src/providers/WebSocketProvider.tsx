@@ -72,7 +72,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         const data = JSON.parse(event.data);
         console.log('[WebSocket] Global Notification received:', data);
         if (data.message) {
-          useToastStore.getState().addToast(data.message, data.level || 'info');
+          useToastStore.getState().addToast({
+            title: data.message,
+            type: data.level || 'info'
+          });
         }
       } catch (e) {
         console.error('[WebSocket] Failed to parse global notification', e);
