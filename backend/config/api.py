@@ -2,6 +2,7 @@ import uuid
 from typing import List, Optional, Any, Dict
 from django.shortcuts import get_object_or_404
 from ninja import NinjaAPI, Router, Schema, File
+from django.core.cache import cache
 from ninja.files import UploadedFile
 from pydantic import Field
 
@@ -2420,6 +2421,52 @@ def universal_agent_chat(request, project_id: str, payload: ChatHistoryIn):
         response_string = chat_with_agent(payload.messages, project_id)
         return {"reply": response_string}
     except Exception as e:
+        raise HttpError(500, str(e))
+
+@ai_router.get("/projects/{project_id}/pending-breakdown")
+def get_pending_breakdown(request, project_id: str):
+    data = cache.get(f"pending_breakdown_{project_id}")
+    return {"data": data}
+
+class ApproveBreakdownIn(Schema):
+    scenes: list[Any]
+
+@ai_router.post("/projects/{project_id}/approve-breakdown")
+def approve_breakdown(request, project_id: str, payload: ApproveBreakdownIn):
+    try:
+        project = Project.objects.get(id=project_id)
+        for idx, scene_data in enumerate(payload.scenes):
+            heading = scene_data.get('heading', '')
+            synopsis = scene_data.get('synopsis', '')
+            chars = scene_data.get('characters', [])
+            
+            int_ext = 'EXT' if 'EXT' in heading.upper() else 'INT'
+            time_of_day = 'NIGHT' if 'NIGHT' in heading.upper() else 'DAY'
+            set_name = heading.replace('INT.', '').replace('EXT.', '').replace('- NIGHT', '').replace('- DAY', '').strip()
+            
+            Scene.objects.create(
+                scene_number=str(idx+1),
+                order_index=str(idx+1),
+                int_ext=int_ext,
+                set_name=set_name,
+                time_of_day=time_of_day,
+                pages_eighths=8,
+                pages_display="1",
+                estimated_shoot_minutes=60,
+                synopsis=synopsis
+            )
+            
+            for char_name in chars:
+                Character.objects.get_or_create(
+                    project=project,
+                    name=char_name,
+                    defaults={'cast_id_number': 0, 'actor_name': ''}
+                )
+        
+        cache.delete(f"pending_breakdown_{project_id}")
+        return {"status": "success"}
+    except Exception as e:
+        from ninja.errors import HttpError
         raise HttpError(500, str(e))
 
 # Register routers on unified api instance
