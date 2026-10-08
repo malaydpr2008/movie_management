@@ -7,19 +7,19 @@ class TakeInline(admin.TabularInline):
 
 @admin.register(CameraSetup)
 class CameraSetupAdmin(admin.ModelAdmin):
-    list_display = ('setup_code', 'scene', 'lighting_package_notes', 'created_at')
-    list_filter = ('setup_code', 'scene__sequence__act__project')
-    search_fields = ('setup_code', 'lighting_package_notes')
+    list_display = ('setup_code', 'scene', 'camera_movement', 'created_at')
+    list_filter = ('camera_movement', 'scene__sequence__act__project')
+    search_fields = ('setup_code', 'equipment_notes')
 
 @admin.register(Shot)
 class ShotAdmin(admin.ModelAdmin):
-    list_display = ('id', 'scene', 'shot_size', 'lens', 'camera_movement', 'vfx_required')
-    list_filter = ('shot_size', 'camera_movement', 'vfx_required', 'scene')
+    list_display = ('id', 'setup', 'shot_size', 'lens', 'vfx_required')
+    list_filter = ('shot_size', 'vfx_required', 'setup__scene')
     search_fields = ('description', 'lens')
     inlines = [TakeInline]
 
 @admin.register(Take)
 class TakeAdmin(admin.ModelAdmin):
-    list_display = ('take_number', 'shot', 'is_circle_take', 'camera_card', 'sound_roll', 'timecode_in', 'timecode_out')
-    list_filter = ('is_circle_take', 'shot__scene')
-    search_fields = ('camera_card', 'sound_roll', 'script_supervisor_notes')
+    list_display = ('take_number', 'shot', 'is_circle_take', 'duration_seconds')
+    list_filter = ('is_circle_take', 'shot__setup__scene')
+    search_fields = ('director_notes',)

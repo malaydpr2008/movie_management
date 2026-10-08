@@ -28,6 +28,7 @@ export interface SceneTreeNode {
   pages_display: string;
   estimated_shoot_minutes: number;
   synopsis: string;
+  setup_count: number;
   shot_count: number;
   take_count: number;
   circle_take_count: number;
@@ -142,6 +143,7 @@ export interface SceneDetail {
     [key: string]: any;
   };
   synopsis: string;
+  setup_count: number;
   shot_count: number;
   take_count: number;
 }

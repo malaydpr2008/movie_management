@@ -2,13 +2,12 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Camera, Video, Film, CircleDot, Clapperboard, Filter, Search, ChevronRight } from 'lucide-react';
+import { Camera, Video, Film, CircleDot, Clapperboard, ChevronRight, Layers } from 'lucide-react';
 import Link from 'next/link';
 import { api, ProjectTree } from '@/lib/api';
 
 export default function ShotListPage({ params }: { params: { projectId: string } }) {
   const { projectId } = params;
-  const [filterFraming, setFilterFraming] = useState<string | null>(null);
 
   const { data: projectTree, isLoading } = useQuery<ProjectTree>({
     queryKey: ['projectTree', projectId],
@@ -25,6 +24,7 @@ export default function ShotListPage({ params }: { params: { projectId: string }
   }
 
   const allScenes = projectTree.acts.flatMap((a) => a.sequences.flatMap((s) => s.scenes));
+  const totalPlannedSetups = allScenes.reduce((acc, s) => acc + (s.setup_count || 0), 0);
   const totalPlannedShots = allScenes.reduce((acc, s) => acc + s.shot_count, 0);
   const totalRecordedTakes = allScenes.reduce((acc, s) => acc + s.take_count, 0);
   const totalCircleTakes = allScenes.reduce((acc, s) => acc + s.circle_take_count, 0);
@@ -48,6 +48,11 @@ export default function ShotListPage({ params }: { params: { projectId: string }
         {/* Telemetry stats */}
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-xl bg-studio-900 border border-white/5 flex items-center gap-4 text-xs font-mono">
+            <div>
+              <span className="text-slate-400 block text-[10px]">TOTAL SETUPS</span>
+              <span className="text-base font-bold text-indigo-400">{totalPlannedSetups}</span>
+            </div>
+            <span className="text-slate-700">|</span>
             <div>
               <span className="text-slate-400 block text-[10px]">TOTAL SHOTS</span>
               <span className="text-base font-bold text-white">{totalPlannedShots}</span>
@@ -101,6 +106,10 @@ export default function ShotListPage({ params }: { params: { projectId: string }
 
             <div className="flex items-center gap-4 shrink-0">
               <div className="flex items-center gap-3 text-xs font-mono">
+                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-studio-800 text-slate-300">
+                  <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{scene.setup_count || 0} setups</span>
+                </span>
                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-studio-800 text-slate-300">
                   <Video className="w-3.5 h-3.5 text-sky-400" />
                   <span>{scene.shot_count} shots</span>

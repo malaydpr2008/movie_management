@@ -61,6 +61,7 @@ class SceneTreeNode(Schema):
     shot_count: int = 0
     take_count: int = 0
     circle_take_count: int = 0
+    setup_count: int = 0
 
 class SequenceTreeNode(Schema):
     id: uuid.UUID
@@ -756,10 +757,12 @@ def get_project_tree(request, project_id: uuid.UUID):
         for seq in act.sequences.order_by('order_index'):
             scenes_tree = []
             for sc in seq.scenes.order_by('order_index'):
-                shots = Shot.objects.filter(scene=sc)
-                shot_count = shots.count()
-                take_count = Take.objects.filter(shot__scene=sc).count()
-                circle_take_count = Take.objects.filter(shot__scene=sc, is_circle_take=True).count()
+                setups = CameraSetup.objects.filter(scene=sc)
+            shots = Shot.objects.filter(setup__scene=sc)
+                setup_count = setups.count()
+            shot_count = shots.count()
+                take_count = Take.objects.filter(shot__setup__scene=sc).count()
+                circle_take_count = Take.objects.filter(shot__setup__scene=sc, is_circle_take=True).count()
                 scenes_tree.append(
                     SceneTreeNode(
                         id=sc.id,
@@ -773,9 +776,11 @@ def get_project_tree(request, project_id: uuid.UUID):
                         pages_display=sc.pages_display,
                         estimated_shoot_minutes=sc.estimated_shoot_minutes,
                         synopsis=sc.synopsis,
-                        shot_count=shot_count,
+                        setup_count=setup_count,
+        shot_count=shot_count,
                         take_count=take_count,
-                        circle_take_count=circle_take_count
+                        circle_take_count=circle_take_count,
+                    setup_count=setup_count
                     )
                 )
             seqs_tree.append(
@@ -821,9 +826,10 @@ def reorder_scene(request, payload: SceneReorderIn):
     scene.order_index = payload.new_order_index
     scene.save()
 
-    shot_count = Shot.objects.filter(scene=scene).count()
-    take_count = Take.objects.filter(shot__scene=scene).count()
-    circle_take_count = Take.objects.filter(shot__scene=scene, is_circle_take=True).count()
+    setup_count = CameraSetup.objects.filter(scene=scene).count()
+    shot_count = Shot.objects.filter(setup__scene=scene).count()
+    take_count = Take.objects.filter(shot__setup__scene=scene).count()
+    circle_take_count = Take.objects.filter(shot__setup__scene=scene, is_circle_take=True).count()
 
     return SceneTreeNode(
         id=scene.id,
@@ -837,16 +843,19 @@ def reorder_scene(request, payload: SceneReorderIn):
         pages_display=scene.pages_display,
         estimated_shoot_minutes=scene.estimated_shoot_minutes,
         synopsis=scene.synopsis,
+        setup_count=setup_count,
         shot_count=shot_count,
         take_count=take_count,
-        circle_take_count=circle_take_count
+        circle_take_count=circle_take_count,
+                    setup_count=setup_count
     )
 
 @narrative_router.get("/scenes/{scene_id}", response=SceneDetailOut)
 def get_scene_detail(request, scene_id: uuid.UUID):
     scene = get_object_or_404(Scene.objects.select_related('sequence__act__project'), id=scene_id)
-    shot_count = Shot.objects.filter(scene=scene).count()
-    take_count = Take.objects.filter(shot__scene=scene).count()
+    setup_count = CameraSetup.objects.filter(scene=scene).count()
+    shot_count = Shot.objects.filter(setup__scene=scene).count()
+    take_count = Take.objects.filter(shot__setup__scene=scene).count()
 
     seq = scene.sequence
     act = seq.act if seq else None
@@ -869,6 +878,7 @@ def get_scene_detail(request, scene_id: uuid.UUID):
         estimated_shoot_minutes=scene.estimated_shoot_minutes,
         script_data=scene.script_data or {},
         synopsis=scene.synopsis,
+        setup_count=setup_count,
         shot_count=shot_count,
         take_count=take_count
     )
@@ -907,9 +917,11 @@ def get_act_detail(request, act_id: uuid.UUID):
         seq_shots = 0
 
         for sc in scenes:
-            sc_shots = Shot.objects.filter(scene=sc).count()
-            sc_takes = Take.objects.filter(shot__scene=sc).count()
-            sc_circle = Take.objects.filter(shot__scene=sc, is_circle_take=True).count()
+            sc_setups = CameraSetup.objects.filter(scene=sc).count()
+            sc_setups = CameraSetup.objects.filter(scene=sc)
+            shots = Shot.objects.filter(setup__scene=sc).count()
+            sc_takes = Take.objects.filter(shot__setup__scene=sc).count()
+            sc_circle = Take.objects.filter(shot__setup__scene=sc, is_circle_take=True).count()
 
             total_scenes += 1
             actual_pages_eighths += sc.pages_eighths
@@ -944,6 +956,7 @@ def get_act_detail(request, act_id: uuid.UUID):
                     pages_display=sc.pages_display,
                     estimated_shoot_minutes=sc.estimated_shoot_minutes,
                     synopsis=sc.synopsis,
+                    setup_count=sc_setups,
                     shot_count=sc_shots,
                     take_count=sc_takes,
                     circle_take_count=sc_circle,
@@ -1035,9 +1048,11 @@ def get_sequence_detail(request, sequence_id: uuid.UUID):
     scenes_out = []
 
     for sc in scenes:
-        sc_shots = Shot.objects.filter(scene=sc).count()
-        sc_takes = Take.objects.filter(shot__scene=sc).count()
-        sc_circle = Take.objects.filter(shot__scene=sc, is_circle_take=True).count()
+        sc_setups = CameraSetup.objects.filter(scene=sc).count()
+            sc_setups = CameraSetup.objects.filter(scene=sc)
+            shots = Shot.objects.filter(setup__scene=sc).count()
+        sc_takes = Take.objects.filter(shot__setup__scene=sc).count()
+        sc_circle = Take.objects.filter(shot__setup__scene=sc, is_circle_take=True).count()
 
         total_eighths += sc.pages_eighths
         total_shots += sc_shots
@@ -1055,7 +1070,8 @@ def get_sequence_detail(request, sequence_id: uuid.UUID):
                 pages_display=sc.pages_display,
                 estimated_shoot_minutes=sc.estimated_shoot_minutes,
                 synopsis=sc.synopsis,
-                shot_count=sc_shots,
+                setup_count=sc_setups,
+                    shot_count=sc_shots,
                 take_count=sc_takes,
                 circle_take_count=sc_circle,
             )
@@ -1239,44 +1255,95 @@ def update_adr_cue_status(request, project_id: uuid.UUID, cue_id: uuid.UUID, pay
 # ROUTER: SHOTS & COVERAGE
 # ---------------------------------------------------------------------------
 
+
 shots_router = Router(tags=["Shots & Coverage"])
 
-@shots_router.get("/scenes/{scene_id}/coverage", response=SceneCoverageOut)
-def get_scene_coverage(request, scene_id: uuid.UUID):
+class TakeOut(Schema):
+    id: uuid.UUID
+    shot_id: uuid.UUID
+    take_number: int
+    is_circle_take: bool
+    duration_seconds: Optional[int]
+    director_notes: str
+    created_at: Any
+
+class TakeIn(Schema):
+    shot_id: uuid.UUID
+    take_number: int
+    is_circle_take: bool = False
+    duration_seconds: Optional[int] = None
+    director_notes: str = ""
+
+class ShotOut(Schema):
+    id: uuid.UUID
+    setup_id: uuid.UUID
+    shot_code: str
+    shot_size: str
+    lens: Optional[str]
+    description: str
+    vfx_required: bool
+    created_at: Any
+    takes: List[TakeOut] = []
+
+class ShotIn(Schema):
+    setup_id: uuid.UUID
+    shot_code: str
+    shot_size: str
+    lens: Optional[str] = None
+    description: str = ""
+    vfx_required: bool = False
+
+class CameraSetupOut(Schema):
+    id: uuid.UUID
+    scene_id: uuid.UUID
+    setup_code: str
+    camera_movement: str
+    equipment_notes: str
+    created_at: Any
+    shots: List[ShotOut] = []
+
+class CameraSetupIn(Schema):
+    scene_id: uuid.UUID
+    setup_code: str
+    camera_movement: str
+    equipment_notes: str = ""
+
+class SceneCoverageOut(Schema):
+    scene_id: uuid.UUID
+    setups: List[CameraSetupOut] = []
+
+@shots_router.get("/scenes/{scene_id}/setups", response=SceneCoverageOut)
+def get_scene_setups(request, scene_id: uuid.UUID):
     scene = get_object_or_404(Scene, id=scene_id)
+    from apps.shots.models import CameraSetup
     setups = CameraSetup.objects.filter(scene=scene).prefetch_related('shots__takes').order_by('setup_code')
+    
     setups_out = []
     for setup in setups:
         shots_out = []
-        for shot in setup.shots.order_by('order_index', 'shot_code'):
+        for shot in setup.shots.order_by('shot_code'):
             takes_out = [
                 TakeOut(
-                    id=take.id,
+                    id=t.id,
                     shot_id=shot.id,
-                    take_number=take.take_number,
-                    is_circle_take=take.is_circle_take,
-                    camera_card=take.camera_card,
-                    sound_roll=take.sound_roll,
-                    timecode_in=take.timecode_in,
-                    timecode_out=take.timecode_out,
-                    script_supervisor_notes=take.script_supervisor_notes,
-                    created_at=take.created_at
+                    take_number=t.take_number,
+                    is_circle_take=t.is_circle_take,
+                    duration_seconds=t.duration_seconds,
+                    director_notes=t.director_notes,
+                    created_at=t.created_at
                 )
-                for take in shot.takes.order_by('take_number')
+                for t in shot.takes.all()
             ]
             shots_out.append(
                 ShotOut(
                     id=shot.id,
                     setup_id=setup.id,
-                    setup_code=setup.setup_code,
                     shot_code=shot.shot_code,
-                    order_index=shot.order_index,
                     shot_size=shot.shot_size,
-                    focal_length=shot.focal_length,
-                    camera_movement=shot.camera_movement,
-                    framing_description=shot.framing_description,
-                    storyboard_frame_url=shot.storyboard_frame_url,
-                    covered_script_blocks=shot.covered_script_blocks or [],
+                    lens=shot.lens,
+                    description=shot.description,
+                    vfx_required=shot.vfx_required,
+                    created_at=shot.created_at,
                     takes=takes_out
                 )
             )
@@ -1285,8 +1352,9 @@ def get_scene_coverage(request, scene_id: uuid.UUID):
                 id=setup.id,
                 scene_id=scene.id,
                 setup_code=setup.setup_code,
-                lighting_package_notes=setup.lighting_package_notes,
-                overhead_floorplan_url=setup.overhead_floorplan_url,
+                camera_movement=setup.camera_movement,
+                equipment_notes=setup.equipment_notes,
+                created_at=setup.created_at,
                 shots=shots_out
             )
         )
@@ -1295,147 +1363,67 @@ def get_scene_coverage(request, scene_id: uuid.UUID):
 @shots_router.post("/setups", response=CameraSetupOut)
 def create_setup(request, payload: CameraSetupIn):
     scene = get_object_or_404(Scene, id=payload.scene_id)
+    from apps.shots.models import CameraSetup
     setup = CameraSetup.objects.create(
         scene=scene,
-        setup_code=payload.setup_code.upper(),
-        lighting_package_notes=payload.lighting_package_notes,
-        overhead_floorplan_url=payload.overhead_floorplan_url
+        setup_code=payload.setup_code,
+        camera_movement=payload.camera_movement,
+        equipment_notes=payload.equipment_notes
     )
     return CameraSetupOut(
         id=setup.id,
         scene_id=scene.id,
         setup_code=setup.setup_code,
-        lighting_package_notes=setup.lighting_package_notes,
-        overhead_floorplan_url=setup.overhead_floorplan_url,
+        camera_movement=setup.camera_movement,
+        equipment_notes=setup.equipment_notes,
+        created_at=setup.created_at,
         shots=[]
     )
 
 @shots_router.post("/shots", response=ShotOut)
 def create_shot(request, payload: ShotIn):
+    from apps.shots.models import CameraSetup, Shot
     setup = get_object_or_404(CameraSetup, id=payload.setup_id)
     shot = Shot.objects.create(
         setup=setup,
         shot_code=payload.shot_code,
-        order_index=payload.order_index,
         shot_size=payload.shot_size,
-        focal_length=payload.focal_length,
-        camera_movement=payload.camera_movement,
-        framing_description=payload.framing_description,
-        storyboard_frame_url=payload.storyboard_frame_url,
-        covered_script_blocks=payload.covered_script_blocks
+        lens=payload.lens,
+        description=payload.description,
+        vfx_required=payload.vfx_required
     )
     return ShotOut(
         id=shot.id,
         setup_id=setup.id,
-        setup_code=setup.setup_code,
         shot_code=shot.shot_code,
-        order_index=shot.order_index,
         shot_size=shot.shot_size,
-        focal_length=shot.focal_length,
-        camera_movement=shot.camera_movement,
-        framing_description=shot.framing_description,
-        storyboard_frame_url=shot.storyboard_frame_url,
-        covered_script_blocks=shot.covered_script_blocks or [],
+        lens=shot.lens,
+        description=shot.description,
+        vfx_required=shot.vfx_required,
+        created_at=shot.created_at,
         takes=[]
     )
 
-@shots_router.patch("/shots/{shot_id}", response=ShotOut)
-def update_shot(request, shot_id: uuid.UUID, payload: ShotUpdateIn):
-    shot = get_object_or_404(Shot.objects.select_related('setup'), id=shot_id)
-    data = payload.dict(exclude_unset=True)
-    for field, val in data.items():
-        if field == 'setup_id' and val is not None:
-            shot.setup = get_object_or_404(CameraSetup, id=val)
-        else:
-            setattr(shot, field, val)
-    shot.save()
-
-    takes_out = [
-        TakeOut(
-            id=t.id,
-            shot_id=shot.id,
-            take_number=t.take_number,
-            is_circle_take=t.is_circle_take,
-            camera_card=t.camera_card,
-            sound_roll=t.sound_roll,
-            timecode_in=t.timecode_in,
-            timecode_out=t.timecode_out,
-            script_supervisor_notes=t.script_supervisor_notes,
-            created_at=t.created_at
-        )
-        for t in shot.takes.order_by('take_number')
-    ]
-
-    return ShotOut(
-        id=shot.id,
-        setup_id=shot.setup.id,
-        setup_code=shot.setup.setup_code,
-        shot_code=shot.shot_code,
-        order_index=shot.order_index,
-        shot_size=shot.shot_size,
-        focal_length=shot.focal_length,
-        camera_movement=shot.camera_movement,
-        framing_description=shot.framing_description,
-        storyboard_frame_url=shot.storyboard_frame_url,
-        covered_script_blocks=shot.covered_script_blocks or [],
-        takes=takes_out
-    )
-
-@shots_router.delete("/shots/{shot_id}")
-def delete_shot(request, shot_id: uuid.UUID):
-    shot = get_object_or_404(Shot, id=shot_id)
-    shot.delete()
-    return {"success": True}
-
 @shots_router.post("/takes", response=TakeOut)
 def create_take(request, payload: TakeIn):
+    from apps.shots.models import Shot, Take
     shot = get_object_or_404(Shot, id=payload.shot_id)
     take = Take.objects.create(
         shot=shot,
         take_number=payload.take_number,
         is_circle_take=payload.is_circle_take,
-        camera_card=payload.camera_card,
-        sound_roll=payload.sound_roll,
-        timecode_in=payload.timecode_in,
-        timecode_out=payload.timecode_out,
-        script_supervisor_notes=payload.script_supervisor_notes
+        duration_seconds=payload.duration_seconds,
+        director_notes=payload.director_notes
     )
     return TakeOut(
         id=take.id,
         shot_id=shot.id,
         take_number=take.take_number,
         is_circle_take=take.is_circle_take,
-        camera_card=take.camera_card,
-        sound_roll=take.sound_roll,
-        timecode_in=take.timecode_in,
-        timecode_out=take.timecode_out,
-        script_supervisor_notes=take.script_supervisor_notes,
+        duration_seconds=take.duration_seconds,
+        director_notes=take.director_notes,
         created_at=take.created_at
     )
-
-@shots_router.patch("/takes/{take_id}/toggle-circle", response=TakeOut)
-def toggle_circle_take(request, take_id: uuid.UUID):
-    take = get_object_or_404(Take, id=take_id)
-    take.is_circle_take = not take.is_circle_take
-    take.save()
-    return TakeOut(
-        id=take.id,
-        shot_id=take.shot_id,
-        take_number=take.take_number,
-        is_circle_take=take.is_circle_take,
-        camera_card=take.camera_card,
-        sound_roll=take.sound_roll,
-        timecode_in=take.timecode_in,
-        timecode_out=take.timecode_out,
-        script_supervisor_notes=take.script_supervisor_notes,
-        created_at=take.created_at
-    )
-
-@shots_router.delete("/takes/{take_id}")
-def delete_take(request, take_id: uuid.UUID):
-    take = get_object_or_404(Take, id=take_id)
-    take.delete()
-    return {"success": True}
 
 # ---------------------------------------------------------------------------
 # ROUTER: BREAKDOWN
