@@ -594,6 +594,27 @@ class DoodMatrixOut(Schema):
     total_cast_count: int
     daily_working_summary: Dict[str, int]
 
+class CrewMemberOut(Schema):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    name: str
+    role: str
+    department: str
+    union_affiliation: str
+    day_rate: float
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    created_at: Any
+
+class CrewMemberIn(Schema):
+    name: str
+    role: str
+    department: str
+    union_affiliation: str = "Non-Union"
+    day_rate: float = 0.00
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
 # ---------------------------------------------------------------------------
 # ROUTER: STUDIO HUB
 # ---------------------------------------------------------------------------
@@ -662,6 +683,50 @@ def update_vfx_status(request, project_id: uuid.UUID, shot_id: uuid.UUID, payloa
         description=shot.description,
         frame_count=shot.frame_count,
         vendor_name=shot.vendor_name
+    )
+
+@studio_router.get("/projects/{project_id}/crew", response=List[CrewMemberOut])
+def get_crew_roster(request, project_id: uuid.UUID):
+    crew = CrewMember.objects.filter(project_id=project_id).order_by('department', 'name')
+    return [
+        CrewMemberOut(
+            id=c.id,
+            project_id=c.project_id,
+            name=c.name,
+            role=c.role,
+            department=c.department,
+            union_affiliation=c.union_affiliation,
+            day_rate=float(c.day_rate),
+            email=c.email,
+            phone=c.phone,
+            created_at=c.created_at
+        ) for c in crew
+    ]
+
+@studio_router.post("/projects/{project_id}/crew", response=CrewMemberOut)
+def add_crew_member(request, project_id: uuid.UUID, payload: CrewMemberIn):
+    project = get_object_or_404(Project, id=project_id)
+    crew = CrewMember.objects.create(
+        project=project,
+        name=payload.name,
+        role=payload.role,
+        department=payload.department,
+        union_affiliation=payload.union_affiliation,
+        day_rate=payload.day_rate,
+        email=payload.email,
+        phone=payload.phone
+    )
+    return CrewMemberOut(
+        id=crew.id,
+        project_id=crew.project_id,
+        name=crew.name,
+        role=crew.role,
+        department=crew.department,
+        union_affiliation=crew.union_affiliation,
+        day_rate=float(crew.day_rate),
+        email=crew.email,
+        phone=crew.phone,
+        created_at=crew.created_at
     )
 
 # ---------------------------------------------------------------------------
