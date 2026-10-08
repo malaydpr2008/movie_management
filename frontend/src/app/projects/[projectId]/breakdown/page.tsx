@@ -9,7 +9,8 @@ import {
   MapPin,
   Wand2,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Tag
 } from 'lucide-react';
 import { api, BreakdownSummary } from '@/lib/api';
 import LocationsTab from '@/components/breakdown/LocationsTab';
@@ -20,7 +21,7 @@ import ElementTaggingPanel from '@/components/breakdown/ElementTaggingPanel';
 
 export default function BreakdownCatalogsPage({ params }: { params: { projectId: string } }) {
   const { projectId } = params;
-  const [activeTab, setActiveTab] = useState<'locations' | 'characters' | 'props' | 'vfx'>('locations');
+  const [activeTab, setActiveTab] = useState<'locations' | 'characters' | 'props' | 'vfx' | 'tagging'>('locations');
 
   const {
     data: summary,
@@ -111,6 +112,18 @@ export default function BreakdownCatalogsPage({ params }: { params: { projectId:
               <Wand2 className="w-3.5 h-3.5" />
               <span>VFX / SFX ({summary.total_vfx + summary.total_sfx})</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('tagging')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg font-mono text-xs font-bold transition-all ${
+                activeTab === 'tagging'
+                  ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Tag className="w-3.5 h-3.5" />
+              <span>Manual Tagging</span>
+            </button>
           </div>
 
           <button
@@ -149,11 +162,12 @@ export default function BreakdownCatalogsPage({ params }: { params: { projectId:
         </div>
       </div>
 
-      <div className="mb-6">
-        <ElementTaggingPanel projectId={projectId} />
-      </div>
-
       {/* Active Tab Panel */}
+      {activeTab === 'tagging' && (
+        <div className="mb-6">
+          <ElementTaggingPanel projectId={projectId} />
+        </div>
+      )}
       {activeTab === 'locations' && (
         <LocationsTab
           projectId={projectId}
