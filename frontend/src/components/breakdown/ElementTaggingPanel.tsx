@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { api, SceneTreeNode } from '@/lib/api';
 
 const CATEGORIES = [
   'Cast', 'Extras', 'Props', 'Wardrobe', 'Makeup', 'Vehicles',
@@ -33,23 +34,39 @@ interface Element {
 
 interface Props {
   projectId: string;
-  sceneId: string;
+  sceneId?: string;
 }
 
 export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
   const [elements, setElements] = useState<Element[]>([]);
+  const [activeSceneId, setActiveSceneId] = useState<string>(sceneId || '');
+  const [scenes, setScenes] = useState<SceneTreeNode[]>([]);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchElements();
+    if (!sceneId) {
+      api.getProjectTree(projectId).then(tree => {
+        const allScenes = tree.acts.flatMap(act => act.sequences.flatMap(seq => seq.scenes));
+        setScenes(allScenes);
+        if (allScenes.length > 0 && !activeSceneId) setActiveSceneId(allScenes[0].id);
+      }).catch(console.error);
+    } else {
+      setActiveSceneId(sceneId);
+    }
   }, [projectId, sceneId]);
 
-  const fetchElements = async () => {
+  useEffect(() => {
+    if (activeSceneId) {
+      fetchElements(activeSceneId);
+    }
+  }, [projectId, activeSceneId]);
+
+  const fetchElements = async (sid: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/breakdown/projects/${projectId}/scenes/${sceneId}/elements`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/breakdown/projects/${projectId}/scenes/${sid}/elements`);
       if (res.ok) {
         const data = await res.json();
         setElements(data.elements || []);
@@ -65,7 +82,7 @@ export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/breakdown/projects/${projectId}/scenes/${sceneId}/elements`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/breakdown/projects/${projectId}/scenes/${activeSceneId}/elements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ category, name, description })
@@ -86,8 +103,24 @@ export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 w-full">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Manual Tagging Panel</h3>
+      <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <h3 className="text-lg font-semibold text-gray-900">Manual Tagging Panel</h3>
+        {!sceneId && scenes.length > 0 && (
+          <select 
+            value={activeSceneId}
+            onChange={(e) => setActiveSceneId(e.target.value)}
+            className="border border-gray-300 rounded-md text-sm p-1.5 focus:border-indigo-500 focus:ring-indigo-500"
+          >
+            {scenes.map(s => (
+              <option key={s.id} value={s.id}>Scene {s.scene_number} - {s.int_ext} {s.set_name}</option>
+            ))}
+          </select>
+        )}
+      </div>
       
+      {!activeSceneId ? (
+        <p className="text-sm text-gray-500 italic text-center py-4">Select a scene to tag elements.</p>
+      ) : (
       <form onSubmit={handleSubmit} className="mb-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -159,6 +192,7 @@ export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

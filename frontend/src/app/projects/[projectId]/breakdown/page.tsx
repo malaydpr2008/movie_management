@@ -16,6 +16,7 @@ import LocationsTab from '@/components/breakdown/LocationsTab';
 import CharactersTab from '@/components/breakdown/CharactersTab';
 import PropsTab from '@/components/breakdown/PropsTab';
 import VfxSfxTab from '@/components/breakdown/VfxSfxTab';
+import ElementTaggingPanel from '@/components/breakdown/ElementTaggingPanel';
 
 export default function BreakdownCatalogsPage({ params }: { params: { projectId: string } }) {
   const { projectId } = params;
@@ -146,6 +147,10 @@ export default function BreakdownCatalogsPage({ params }: { params: { projectId:
             {summary.total_vfx} VFX &bull; {summary.total_sfx} SFX
           </div>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <ElementTaggingPanel projectId={projectId} />
       </div>
 
       {/* Active Tab Panel */}
