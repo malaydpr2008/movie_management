@@ -23,9 +23,8 @@ import { LinedScriptEditor } from '@/components/studio/LinedScriptEditor';
 import { ShotsSetupsDrawer } from '@/components/studio/ShotsSetupsDrawer';
 import { DepartmentBreakdownDrawer } from '@/components/studio/DepartmentBreakdownDrawer';
 import { LogisticsPageMathDrawer } from '@/components/studio/LogisticsPageMathDrawer';
-import ElementTaggingPanel from '@/components/breakdown/ElementTaggingPanel';
-import ADRPanel from '@/components/studio/ADRPanel';
 import { useProjectStore } from '@/stores/useProjectStore';
+import ShotListBoard from '@/components/studio/ShotListBoard';
 
 export default function SceneBuilderPage({
   params,
@@ -154,7 +153,7 @@ export default function SceneBuilderPage({
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Screenplay Editor & Lined Script View */}
         <div className="flex-1 p-4 md:p-6 overflow-y-auto flex flex-col gap-6">
-          <div className="flex-1 min-h-[500px]">
+          <div className="flex-1 min-h-[500px] grid grid-cols-1 xl:grid-cols-2 gap-6 pb-12">
             <LinedScriptEditor
               scene={scene}
               shots={allShots}
@@ -163,10 +162,7 @@ export default function SceneBuilderPage({
                 refetchCoverage();
               }}
             />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
-            <ElementTaggingPanel projectId={projectId} sceneId={sceneId} />
-            <ADRPanel projectId={projectId} sceneId={sceneId} />
+            <ShotListBoard projectId={projectId} sceneId={sceneId} />
           </div>
         </div>
 
