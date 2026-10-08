@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import {
   Box,
