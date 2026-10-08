@@ -58,10 +58,10 @@ class SceneTreeNode(Schema):
     pages_display: str
     estimated_shoot_minutes: int
     synopsis: str
+    setup_count: int = 0
     shot_count: int = 0
     take_count: int = 0
     circle_take_count: int = 0
-    setup_count: int = 0
 
 class SequenceTreeNode(Schema):
     id: uuid.UUID
@@ -758,9 +758,9 @@ def get_project_tree(request, project_id: uuid.UUID):
             scenes_tree = []
             for sc in seq.scenes.order_by('order_index'):
                 setups = CameraSetup.objects.filter(scene=sc)
-            shots = Shot.objects.filter(setup__scene=sc)
+                shots = Shot.objects.filter(setup__scene=sc)
                 setup_count = setups.count()
-            shot_count = shots.count()
+                shot_count = shots.count()
                 take_count = Take.objects.filter(shot__setup__scene=sc).count()
                 circle_take_count = Take.objects.filter(shot__setup__scene=sc, is_circle_take=True).count()
                 scenes_tree.append(
@@ -777,10 +777,9 @@ def get_project_tree(request, project_id: uuid.UUID):
                         estimated_shoot_minutes=sc.estimated_shoot_minutes,
                         synopsis=sc.synopsis,
                         setup_count=setup_count,
-        shot_count=shot_count,
+                        shot_count=shot_count,
                         take_count=take_count,
-                        circle_take_count=circle_take_count,
-                    setup_count=setup_count
+                        circle_take_count=circle_take_count
                     )
                 )
             seqs_tree.append(
@@ -846,8 +845,7 @@ def reorder_scene(request, payload: SceneReorderIn):
         setup_count=setup_count,
         shot_count=shot_count,
         take_count=take_count,
-        circle_take_count=circle_take_count,
-                    setup_count=setup_count
+        circle_take_count=circle_take_count
     )
 
 @narrative_router.get("/scenes/{scene_id}", response=SceneDetailOut)
@@ -918,8 +916,7 @@ def get_act_detail(request, act_id: uuid.UUID):
 
         for sc in scenes:
             sc_setups = CameraSetup.objects.filter(scene=sc).count()
-            sc_setups = CameraSetup.objects.filter(scene=sc)
-            shots = Shot.objects.filter(setup__scene=sc).count()
+            sc_shots = Shot.objects.filter(setup__scene=sc).count()
             sc_takes = Take.objects.filter(shot__setup__scene=sc).count()
             sc_circle = Take.objects.filter(shot__setup__scene=sc, is_circle_take=True).count()
 
@@ -1049,8 +1046,7 @@ def get_sequence_detail(request, sequence_id: uuid.UUID):
 
     for sc in scenes:
         sc_setups = CameraSetup.objects.filter(scene=sc).count()
-            sc_setups = CameraSetup.objects.filter(scene=sc)
-            shots = Shot.objects.filter(setup__scene=sc).count()
+        sc_shots = Shot.objects.filter(setup__scene=sc).count()
         sc_takes = Take.objects.filter(shot__setup__scene=sc).count()
         sc_circle = Take.objects.filter(shot__setup__scene=sc, is_circle_take=True).count()
 
@@ -1071,7 +1067,7 @@ def get_sequence_detail(request, sequence_id: uuid.UUID):
                 estimated_shoot_minutes=sc.estimated_shoot_minutes,
                 synopsis=sc.synopsis,
                 setup_count=sc_setups,
-                    shot_count=sc_shots,
+                shot_count=sc_shots,
                 take_count=sc_takes,
                 circle_take_count=sc_circle,
             )
@@ -1312,7 +1308,7 @@ class SceneCoverageOut(Schema):
     scene_id: uuid.UUID
     setups: List[CameraSetupOut] = []
 
-@shots_router.get("/scenes/{scene_id}/setups", response=SceneCoverageOut)
+@shots_router.get("/scenes/{scene_id}/coverage", response=SceneCoverageOut)
 def get_scene_setups(request, scene_id: uuid.UUID):
     scene = get_object_or_404(Scene, id=scene_id)
     from apps.shots.models import CameraSetup

@@ -66,9 +66,15 @@ class Take(TimeStampedModel):
         return f"Take {self.take_number}{circle} - {self.shot}"
 
 class VfxShot(TimeStampedModel):
+    class StatusChoices(models.TextChoices):
+        PRE_VIS = 'PRE_VIS', 'Pre-Vis'
+        ROTO = 'ROTO', 'Roto & Prep'
+        COMPOSITING = 'COMPOSITING', 'Compositing'
+        FINAL = 'FINAL', 'Final'
+
     scene = models.ForeignKey('narrative.Scene', on_delete=models.CASCADE, related_name='vfx_shots')
     vfx_id = models.CharField(max_length=50)
-    status = models.CharField(max_length=50)
+    status = models.CharField(max_length=50, choices=StatusChoices.choices, default=StatusChoices.PRE_VIS)
     description = models.TextField()
     frame_count = models.PositiveIntegerField(default=0)
     vendor_name = models.CharField(max_length=100, blank=True)

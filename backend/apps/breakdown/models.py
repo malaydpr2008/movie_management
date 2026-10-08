@@ -50,17 +50,20 @@ class Prop(TimeStampedModel):
         hero_tag = " [HERO]" if self.is_hero_prop else ""
         return f"{self.name} (x{self.quantity}){hero_tag}"
 
-class SceneBreakdownItem(TimeStampedModel):
-    ELEMENT_TYPE_CHOICES = [
-        ('PROP', 'PROP'),
-        ('WARDROBE', 'WARDROBE'),
-        ('SOUND', 'SOUND'),
-        ('SFX', 'SFX'),
-        ('VFX', 'VFX'),
-    ]
+class CategoryChoices(models.TextChoices):
+    CAST = 'CAST', 'Cast'
+    PROPS = 'PROPS', 'Props'
+    WARDROBE = 'WARDROBE', 'Wardrobe'
+    VFX = 'VFX', 'VFX'
+    SFX = 'SFX', 'SFX'
+    STUNTS = 'STUNTS', 'Stunts'
+    VEHICLES = 'VEHICLES', 'Vehicles'
+    SOUND = 'SOUND', 'Sound'
+    SET_DRESSING = 'SET_DRESSING', 'Set Dressing'
 
+class SceneBreakdownItem(TimeStampedModel):
     scene = models.ForeignKey('narrative.Scene', on_delete=models.CASCADE, related_name='breakdown_items')
-    element_type = models.CharField(max_length=50, choices=ELEMENT_TYPE_CHOICES, default='PROP')
+    element_type = models.CharField(max_length=50, choices=CategoryChoices.choices, default=CategoryChoices.PROPS)
     prop = models.ForeignKey(Prop, on_delete=models.SET_NULL, null=True, blank=True, related_name='scene_items')
     costume = models.ForeignKey(CostumeLook, on_delete=models.SET_NULL, null=True, blank=True, related_name='scene_items')
     custom_notes = models.TextField(blank=True, default='')
@@ -72,3 +75,15 @@ class SceneBreakdownItem(TimeStampedModel):
     def __str__(self):
         target = self.prop.name if self.prop else (f"{self.costume}" if self.costume else self.custom_notes)
         return f"[{self.element_type}] {target}"
+
+class ContinuityPhoto(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    scene = models.ForeignKey('narrative.Scene', on_delete=models.CASCADE, related_name='continuity_photos')
+    category = models.CharField(max_length=50, choices=CategoryChoices.choices, default=CategoryChoices.PROPS)
+    description = models.TextField(blank=True, default='')
+    image_url = models.URLField()
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Continuity Photo - Scene {self.scene.scene_number} [{self.category}]"
