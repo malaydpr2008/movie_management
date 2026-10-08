@@ -23,6 +23,7 @@ import { LinedScriptEditor } from '@/components/studio/LinedScriptEditor';
 import { ShotsSetupsDrawer } from '@/components/studio/ShotsSetupsDrawer';
 import { DepartmentBreakdownDrawer } from '@/components/studio/DepartmentBreakdownDrawer';
 import { LogisticsPageMathDrawer } from '@/components/studio/LogisticsPageMathDrawer';
+import ElementTaggingPanel from '@/components/breakdown/ElementTaggingPanel';
 import { useProjectStore } from '@/stores/useProjectStore';
 
 export default function SceneBuilderPage({
@@ -151,15 +152,18 @@ export default function SceneBuilderPage({
       {/* Split-Screen Studio Workspace */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Screenplay Editor & Lined Script View */}
-        <div className="flex-1 p-4 md:p-6 overflow-hidden flex flex-col">
-          <LinedScriptEditor
-            scene={scene}
-            shots={allShots}
-            onSceneUpdated={() => {
-              refetchScene();
-              refetchCoverage();
-            }}
-          />
+        <div className="flex-1 p-4 md:p-6 overflow-y-auto flex flex-col gap-6">
+          <div className="flex-1 min-h-[500px]">
+            <LinedScriptEditor
+              scene={scene}
+              shots={allShots}
+              onSceneUpdated={() => {
+                refetchScene();
+                refetchCoverage();
+              }}
+            />
+          </div>
+          <ElementTaggingPanel projectId={projectId} sceneId={sceneId} />
         </div>
 
         {/* Right Panel: Modular Tabbed Drawers */}

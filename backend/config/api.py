@@ -1315,6 +1315,67 @@ def _scene_flags(scene: Scene):
             has_stunts = True
     return has_stunts, has_vfx
 
+class ElementIn(Schema):
+    category: str
+    name: str
+    description: str = ""
+
+@breakdown_router.get("/projects/{project_id}/scenes/{scene_id}/elements")
+def get_scene_elements(request, project_id: uuid.UUID, scene_id: uuid.UUID):
+    scene = get_object_or_404(Scene, id=scene_id, sequence__act__project_id=project_id)
+    items = scene.breakdown_items.select_related('prop', 'costume__character').all()
+    results = []
+    for item in items:
+        name = ""
+        if item.prop:
+            name = item.prop.name
+        elif item.costume:
+            name = f"{item.costume.character.name} - {item.costume.look_number}"
+        else:
+            name = item.custom_notes.split("|")[0].strip() if "|" in item.custom_notes else item.custom_notes
+            
+        desc = item.custom_notes.split("|")[1].strip() if "|" in item.custom_notes else ""
+        if not desc and item.custom_notes and name != item.custom_notes:
+            desc = item.custom_notes
+
+        results.append({
+            "id": str(item.id),
+            "category": item.element_type,
+            "name": name,
+            "description": desc
+        })
+    return {"elements": results}
+
+@breakdown_router.post("/projects/{project_id}/scenes/{scene_id}/elements")
+def add_scene_element(request, project_id: uuid.UUID, scene_id: uuid.UUID, payload: ElementIn):
+    scene = get_object_or_404(Scene, id=scene_id, sequence__act__project_id=project_id)
+    
+    prop = None
+    custom_notes = payload.description
+    
+    if payload.category.upper() in ["PROPS", "PROP"]:
+        prop, _ = Prop.objects.get_or_create(
+            project_id=project_id,
+            name=payload.name,
+            defaults={"is_hero_prop": False, "quantity": 1}
+        )
+    else:
+        custom_notes = f"{payload.name} | {payload.description}" if payload.description else payload.name
+        
+    item = SceneBreakdownItem.objects.create(
+        scene=scene,
+        element_type=payload.category.upper(),
+        prop=prop,
+        custom_notes=custom_notes
+    )
+    
+    return {
+        "id": str(item.id),
+        "category": item.element_type,
+        "name": payload.name,
+        "description": payload.description
+    }
+
 @breakdown_router.get("/scenes/{scene_id}/items", response=List[SceneBreakdownItemOut])
 def get_scene_breakdown_items(request, scene_id: uuid.UUID):
     scene = get_object_or_404(Scene, id=scene_id)
