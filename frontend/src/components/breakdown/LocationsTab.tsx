@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import {
   MapPin,
@@ -9,21 +10,22 @@ import {
   Trash2,
   X,
   ExternalLink
-} from 'lucide-react';
+, Paperclip } from 'lucide-react';
 import Link from 'next/link';
 import { api, MasterLocationDetail } from '@/lib/api';
 
-interface LocationsTabProps {
+interface Props {
   projectId: string;
-  locations: MasterLocationDetail[];
-  onRefresh: () => void;
+  onOpenMedia: (media: {appLabel: string, modelName: string, objectId: string}) => void;
 }
 
-export default function LocationsTab({
-  projectId,
-  locations,
-  onRefresh,
-}: LocationsTabProps) {
+export default function LocationsTab({ projectId, onOpenMedia }: Props) {
+  const { data: dataArray = [], isLoading } = useQuery<MasterLocationDetail[]>({
+    queryKey: ['projectLocations', projectId],
+    queryFn: () => api.getProjectLocations(projectId),
+  });
+  const locations = dataArray;
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -48,7 +50,7 @@ export default function LocationsTab({
       setGps('');
       setSunNotes('');
       setIsAddOpen(false);
-      onRefresh();
+      queryClient.invalidateQueries({ queryKey: ['projectLocations', projectId] });
     } catch (err) {
       console.error('Failed to create location', err);
     } finally {
@@ -60,7 +62,7 @@ export default function LocationsTab({
     if (!confirm('Are you sure you want to delete this master location?')) return;
     try {
       await api.deleteLocation(locId);
-      onRefresh();
+      queryClient.invalidateQueries({ queryKey: ['projectLocations', projectId] });
     } catch (err) {
       console.error('Failed to delete location', err);
     }

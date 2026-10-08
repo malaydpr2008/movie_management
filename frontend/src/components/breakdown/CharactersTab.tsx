@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import {
   Users,
@@ -10,20 +11,21 @@ import {
   Trash2,
   X,
   Camera
-} from 'lucide-react';
+, Paperclip } from 'lucide-react';
 import { api, CharacterDetail } from '@/lib/api';
 
-interface CharactersTabProps {
+interface Props {
   projectId: string;
-  characters: CharacterDetail[];
-  onRefresh: () => void;
+  onOpenMedia: (media: {appLabel: string, modelName: string, objectId: string}) => void;
 }
 
-export default function CharactersTab({
-  projectId,
-  characters,
-  onRefresh,
-}: CharactersTabProps) {
+export default function CharactersTab({ projectId, onOpenMedia }: Props) {
+  const { data: dataArray = [], isLoading } = useQuery<CharacterDetail[]>({
+    queryKey: ['projectCharacters', projectId],
+    queryFn: () => api.getProjectCharacters(projectId),
+  });
+  const characters = dataArray;
+
   const [selectedCharId, setSelectedCharId] = useState<string>(
     characters[0]?.id || ''
   );
@@ -60,7 +62,7 @@ export default function CharactersTab({
       setActorName('');
       setIsAddCharOpen(false);
       setSelectedCharId(created.id);
-      onRefresh();
+      queryClient.invalidateQueries({ queryKey: ['projectCharacters', projectId] });
     } catch (err) {
       console.error('Failed to create character', err);
     } finally {
@@ -82,7 +84,7 @@ export default function CharactersTab({
       setLookDesc('');
       setPhotoUrl('');
       setIsAddLookOpen(false);
-      onRefresh();
+      queryClient.invalidateQueries({ queryKey: ['projectCharacters', projectId] });
     } catch (err) {
       console.error('Failed to add costume look', err);
     } finally {
@@ -94,7 +96,7 @@ export default function CharactersTab({
     if (!confirm('Are you sure you want to delete this character?')) return;
     try {
       await api.deleteCharacter(charId);
-      onRefresh();
+      queryClient.invalidateQueries({ queryKey: ['projectCharacters', projectId] });
     } catch (err) {
       console.error('Failed to delete character', err);
     }
@@ -104,7 +106,7 @@ export default function CharactersTab({
     if (!confirm('Are you sure you want to delete this costume look?')) return;
     try {
       await api.deleteCostumeLook(lookId);
-      onRefresh();
+      queryClient.invalidateQueries({ queryKey: ['projectCharacters', projectId] });
     } catch (err) {
       console.error('Failed to delete look', err);
     }

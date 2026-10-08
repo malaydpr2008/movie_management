@@ -1,5 +1,7 @@
 "use client";
 
+import { useQuery } from '@tanstack/react-query';
+import { api, VFXSfxItem } from '@/lib/api';
 import React, { useState } from 'react';
 import {
   Wand2,
@@ -7,16 +9,22 @@ import {
   AlertTriangle,
   ExternalLink,
   Film
-} from 'lucide-react';
+, Paperclip } from 'lucide-react';
 import Link from 'next/link';
 import { VFXSFXItem } from '@/lib/api';
 
-interface VfxSfxTabProps {
+interface Props {
   projectId: string;
-  items: VFXSFXItem[];
+  onOpenMedia: (media: {appLabel: string, modelName: string, objectId: string}) => void;
 }
 
-export default function VfxSfxTab({ projectId, items }: VfxSfxTabProps) {
+export default function VfxSfxTab({ projectId, onOpenMedia }: Props) {
+  const { data: dataArray = [], isLoading } = useQuery<VFXSfxItem[]>({
+    queryKey: ['projectVfx', projectId],
+    queryFn: () => api.getProjectVfx(projectId),
+  });
+  const items = dataArray;
+
   const [filterType, setFilterType] = useState<'ALL' | 'VFX' | 'SFX'>('ALL');
 
   const filteredItems = items.filter((it) => {

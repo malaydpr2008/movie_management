@@ -18,9 +18,11 @@ import CharactersTab from '@/components/breakdown/CharactersTab';
 import PropsTab from '@/components/breakdown/PropsTab';
 import VfxSfxTab from '@/components/breakdown/VfxSfxTab';
 import ElementTaggingPanel from '@/components/breakdown/ElementTaggingPanel';
+import FloatingMediaViewer from '@/components/ui/FloatingMediaViewer';
 
 export default function BreakdownCatalogsPage({ params }: { params: { projectId: string } }) {
   const { projectId } = params;
+  const [activeMedia, setActiveMedia] = useState<{appLabel: string, modelName: string, objectId: string} | null>(null);
   const [activeTab, setActiveTab] = useState<'locations' | 'characters' | 'props' | 'vfx' | 'tagging'>('locations');
 
   const {
@@ -172,31 +174,37 @@ export default function BreakdownCatalogsPage({ params }: { params: { projectId:
       {activeTab === 'locations' && (
         <LocationsTab
           projectId={projectId}
-          locations={summary.locations}
-          onRefresh={() => refetch()}
+          onOpenMedia={setActiveMedia}
         />
       )}
 
       {activeTab === 'characters' && (
         <CharactersTab
           projectId={projectId}
-          characters={summary.characters}
-          onRefresh={() => refetch()}
+          onOpenMedia={setActiveMedia}
         />
       )}
 
       {activeTab === 'props' && (
         <PropsTab
           projectId={projectId}
-          props={summary.props}
-          onRefresh={() => refetch()}
+          onOpenMedia={setActiveMedia}
         />
       )}
 
       {activeTab === 'vfx' && (
         <VfxSfxTab
           projectId={projectId}
-          items={summary.vfx_sfx_items}
+          onOpenMedia={setActiveMedia}
+        />
+      )}
+
+      {activeMedia && (
+        <FloatingMediaViewer
+          appLabel={activeMedia.appLabel}
+          modelName={activeMedia.modelName}
+          objectId={activeMedia.objectId}
+          onClose={() => setActiveMedia(null)}
         />
       )}
     </div>

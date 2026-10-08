@@ -205,6 +205,16 @@ export interface ContinuityPhoto {
   created_at: string;
 }
 
+
+export interface VFXSfxItem {
+  id: string;
+  element_type: string;
+  target: string;
+  custom_notes: string;
+  is_continuity_critical: boolean;
+  scene_id: string;
+}
+
 export interface SceneBreakdownItem {
   id: string;
   scene_id: string;
@@ -684,6 +694,13 @@ export const api = {
   },
   getContinuityPhotos: (sceneId: string) => apiFetch<ContinuityPhoto[]>(`/breakdown/scenes/${sceneId}/continuity-photos`),
   toggleContinuityPhotoVerify: (photoId: string) => apiFetch<ContinuityPhoto>(`/breakdown/continuity-photos/${photoId}/toggle-verify`, { method: "PATCH" }),
+
+
+  // Catalogs
+  getProjectLocations: (projectId: string) => apiFetch<MasterLocationDetail[]>(`/breakdown/projects/${projectId}/catalogs/locations`),
+  getProjectCharacters: (projectId: string) => apiFetch<CharacterDetail[]>(`/breakdown/projects/${projectId}/catalogs/characters`),
+  getProjectProps: (projectId: string) => apiFetch<PropDetail[]>(`/breakdown/projects/${projectId}/catalogs/props`),
+  getProjectVfx: (projectId: string) => apiFetch<VFXSfxItem[]>(`/breakdown/projects/${projectId}/catalogs/vfx`),
 
   // Universal Media Connector
   uploadMedia: async (appLabel: string, modelName: string, objectId: string, file: File) => {

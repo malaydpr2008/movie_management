@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import {
   Box,
@@ -10,21 +11,22 @@ import {
   X,
   ExternalLink,
   ShieldAlert
-} from 'lucide-react';
+, Paperclip } from 'lucide-react';
 import Link from 'next/link';
 import { api, PropDetail } from '@/lib/api';
 
-interface PropsTabProps {
+interface Props {
   projectId: string;
-  props: PropDetail[];
-  onRefresh: () => void;
+  onOpenMedia: (media: {appLabel: string, modelName: string, objectId: string}) => void;
 }
 
-export default function PropsTab({
-  projectId,
-  props,
-  onRefresh,
-}: PropsTabProps) {
+export default function PropsTab({ projectId, onOpenMedia }: Props) {
+  const { data: dataArray = [], isLoading } = useQuery<PropDetail[]>({
+    queryKey: ['projectProps', projectId],
+    queryFn: () => api.getProjectProps(projectId),
+  });
+  const props = dataArray;
+
   const [filterHero, setFilterHero] = useState<'ALL' | 'HERO' | 'GENERAL'>('ALL');
   const [isAddOpen, setIsAddOpen] = useState(false);
 
@@ -49,7 +51,7 @@ export default function PropsTab({
       setIsHero(false);
       setQuantity(1);
       setIsAddOpen(false);
-      onRefresh();
+      queryClient.invalidateQueries({ queryKey: ['projectProps', projectId] });
     } catch (err) {
       console.error('Failed to create prop', err);
     } finally {
@@ -61,7 +63,7 @@ export default function PropsTab({
     if (!confirm('Are you sure you want to delete this prop from the master inventory?')) return;
     try {
       await api.deleteProp(propId);
-      onRefresh();
+      queryClient.invalidateQueries({ queryKey: ['projectProps', projectId] });
     } catch (err) {
       console.error('Failed to delete prop', err);
     }
