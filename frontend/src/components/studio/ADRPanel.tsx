@@ -133,6 +133,7 @@ export default function ADRPanel({ projectId, sceneId }: Props) {
       {!activeSceneId ? (
         <p className="text-sm text-gray-500 italic text-center py-4">Select a scene to manage ADR cues.</p>
       ) : (
+      <>
       <form onSubmit={handleSubmit} className="mb-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -233,6 +234,7 @@ export default function ADRPanel({ projectId, sceneId }: Props) {
           </div>
         )}
       </div>
+      </>
       )}
     </div>
   );
