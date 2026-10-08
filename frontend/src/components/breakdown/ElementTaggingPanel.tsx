@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import FloatingMediaViewer from '@/components/ui/FloatingMediaViewer';
+import { Paperclip } from 'lucide-react';
 import { api, SceneTreeNode } from '@/lib/api';
 
 const CATEGORIES = [
@@ -45,6 +47,7 @@ export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeMedia, setActiveMedia] = useState<{appLabel: string, modelName: string, objectId: string} | null>(null);
 
   useEffect(() => {
     if (!sceneId) {
@@ -181,12 +184,19 @@ export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
               const catKey = el.category.toUpperCase();
               const colorClass = CATEGORY_COLORS[catKey] || CATEGORY_COLORS['DEFAULT'];
               return (
-                <div key={el.id} className={`inline-flex flex-col border rounded-md px-3 py-2 text-sm shadow-sm ${colorClass}`}>
+                <div key={el.id} className={`inline-flex flex-col border rounded-md px-3 py-2 text-sm shadow-sm relative group pr-8 ${colorClass}`}>
                   <span className="font-bold text-[10px] uppercase tracking-wide opacity-80 mb-1">{el.category}</span>
                   <span className="font-medium leading-tight">{el.name}</span>
                   {el.description && (
                     <span className="text-xs opacity-75 mt-1">{el.description}</span>
                   )}
+                  <button
+                    onClick={() => setActiveMedia({ appLabel: 'breakdown', modelName: 'scenebreakdownitem', objectId: el.id })}
+                    className="absolute top-2 right-2 p-1 rounded-md bg-black/5 hover:bg-black/10 transition-colors"
+                    title="Attach Media"
+                  >
+                    <Paperclip className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />
+                  </button>
                 </div>
               );
             })}
@@ -194,6 +204,14 @@ export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
         )}
       </div>
       </>
+      )}
+      {activeMedia && (
+        <FloatingMediaViewer
+          appLabel={activeMedia.appLabel}
+          modelName={activeMedia.modelName}
+          objectId={activeMedia.objectId}
+          onClose={() => setActiveMedia(null)}
+        />
       )}
     </div>
   );

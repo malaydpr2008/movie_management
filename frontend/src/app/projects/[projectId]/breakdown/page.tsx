@@ -164,9 +164,6 @@ export default function BreakdownCatalogsPage({ params }: { params: { projectId:
 
 
       {/* Active Tab Panel */}
-        </div>
-      )}
-
       {activeTab === 'tagging' && (
         <div className="mb-6">
           <ElementTaggingPanel projectId={projectId} />
