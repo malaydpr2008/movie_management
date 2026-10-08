@@ -9,7 +9,7 @@ import boto3
 from django.conf import settings
 
 from apps.narrative.models import Project, Act, Sequence, Scene
-from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem
+from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem, ContinuityPhoto
 from apps.shots.models import CameraSetup, Shot, Take, VfxShot
 from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem, DailyProductionReport, CrewMember
 from apps.financials.models import BudgetAccount, LineItem
@@ -409,6 +409,16 @@ class MasterLocationUpdateIn(Schema):
     address: Optional[str] = None
     gps_coordinates: Optional[str] = None
     sun_path_notes: Optional[str] = None
+
+
+class ContinuityPhotoOut(Schema):
+    id: uuid.UUID
+    scene_id: uuid.UUID
+    category: str
+    description: str
+    image_url: str
+    is_verified: bool
+    created_at: Any
 
 class SceneBreakdownItemOut(Schema):
     id: uuid.UUID
@@ -1426,6 +1436,63 @@ def create_take(request, payload: TakeIn):
 # ---------------------------------------------------------------------------
 
 breakdown_router = Router(tags=["Breakdown Elements & Catalogs"])
+
+@breakdown_router.post("/projects/{project_id}/scenes/{scene_id}/continuity-photos", response=ContinuityPhotoOut)
+def upload_continuity_photo(request, project_id: uuid.UUID, scene_id: uuid.UUID, category: str, description: str = "", file: UploadedFile = File(...)):
+    scene = get_object_or_404(Scene, id=scene_id)
+    
+    file_path = f"continuity/{project_id}/{scene_id}/{uuid.uuid4()}_{file.name}"
+    from django.core.files.storage import default_storage
+    saved_path = default_storage.save(file_path, file)
+    file_url = default_storage.url(saved_path)
+    
+    photo = ContinuityPhoto.objects.create(
+        scene=scene,
+        category=category,
+        description=description,
+        image_url=file_url
+    )
+    return ContinuityPhotoOut(
+        id=photo.id,
+        scene_id=photo.scene_id,
+        category=photo.category,
+        description=photo.description,
+        image_url=photo.image_url,
+        is_verified=photo.is_verified,
+        created_at=photo.created_at
+    )
+
+@breakdown_router.get("/scenes/{scene_id}/continuity-photos", response=List[ContinuityPhotoOut])
+def get_continuity_photos(request, scene_id: uuid.UUID):
+    scene = get_object_or_404(Scene, id=scene_id)
+    photos = ContinuityPhoto.objects.filter(scene=scene).order_by('-created_at')
+    return [
+        ContinuityPhotoOut(
+            id=p.id,
+            scene_id=p.scene_id,
+            category=p.category,
+            description=p.description,
+            image_url=p.image_url,
+            is_verified=p.is_verified,
+            created_at=p.created_at
+        ) for p in photos
+    ]
+
+@breakdown_router.patch("/continuity-photos/{photo_id}/toggle-verify", response=ContinuityPhotoOut)
+def toggle_verify_continuity_photo(request, photo_id: uuid.UUID):
+    photo = get_object_or_404(ContinuityPhoto, id=photo_id)
+    photo.is_verified = not photo.is_verified
+    photo.save()
+    return ContinuityPhotoOut(
+        id=photo.id,
+        scene_id=photo.scene_id,
+        category=photo.category,
+        description=photo.description,
+        image_url=photo.image_url,
+        is_verified=photo.is_verified,
+        created_at=photo.created_at
+    )
+
 
 def _format_pages_eighths(total_eighths: int) -> str:
     whole = total_eighths // 8

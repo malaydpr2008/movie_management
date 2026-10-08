@@ -185,6 +185,17 @@ export interface SceneCoverage {
   setups: CameraSetup[];
 }
 
+
+export interface ContinuityPhoto {
+  id: string;
+  scene_id: string;
+  category: string;
+  description: string;
+  image_url: string;
+  is_verified: boolean;
+  created_at: string;
+}
+
 export interface SceneBreakdownItem {
   id: string;
   scene_id: string;
@@ -643,6 +654,27 @@ export const api = {
     apiFetch<Take>(`/shots/takes/${takeId}/toggle-circle`, {
       method: "PATCH",
     }),
+
+  // Continuity Photos
+  uploadContinuityPhoto: async (projectId: string, sceneId: string, file: File, category: string, description: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', category);
+    formData.append('description', description);
+
+    // Assuming apiFetch handles FormData differently or we fetch manually
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/breakdown/projects/${projectId}/scenes/${sceneId}/continuity-photos`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    return response.json() as Promise<ContinuityPhoto>;
+  },
+  getContinuityPhotos: (sceneId: string) => apiFetch<ContinuityPhoto[]>(`/breakdown/scenes/${sceneId}/continuity-photos`),
+  toggleContinuityPhotoVerify: (photoId: string) => apiFetch<ContinuityPhoto>(`/breakdown/continuity-photos/${photoId}/toggle-verify`, { method: "PATCH" }),
 
   // Breakdown
   getSceneBreakdownItems: (sceneId: string) => apiFetch<SceneBreakdownItem[]>(`/breakdown/scenes/${sceneId}/items`),
