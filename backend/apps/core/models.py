@@ -2,6 +2,8 @@ import uuid
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractUser
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
 
 class User(AbstractUser):
     pass
@@ -61,3 +63,24 @@ class BackgroundJob(models.Model):
     error_message = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class MediaAsset(models.Model):
+    class FileTypeChoices(models.TextChoices):
+        IMAGE = 'IMAGE', 'Image'
+        AUDIO = 'AUDIO', 'Audio'
+        PDF = 'PDF', 'PDF'
+        OTHER = 'OTHER', 'Other'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    file_url = models.URLField(max_length=500)
+    file_type = models.CharField(max_length=10, choices=FileTypeChoices.choices, default=FileTypeChoices.IMAGE)
+    
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.CharField(max_length=50) # To handle UUIDs cleanly
+    content_object = GenericForeignKey('content_type', 'object_id')
+    
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"MediaAsset [{self.file_type}] for {self.content_type.model} {self.object_id}"

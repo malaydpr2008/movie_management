@@ -4,6 +4,15 @@ export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:800
 // TYPE DEFINITIONS
 // ---------------------------------------------------------------------------
 
+
+export interface MediaAsset {
+  id: string;
+  file_url: string;
+  file_type: string;
+  object_id: string;
+  uploaded_at: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -675,6 +684,24 @@ export const api = {
   },
   getContinuityPhotos: (sceneId: string) => apiFetch<ContinuityPhoto[]>(`/breakdown/scenes/${sceneId}/continuity-photos`),
   toggleContinuityPhotoVerify: (photoId: string) => apiFetch<ContinuityPhoto>(`/breakdown/continuity-photos/${photoId}/toggle-verify`, { method: "PATCH" }),
+
+  // Universal Media Connector
+  uploadMedia: async (appLabel: string, modelName: string, objectId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/media/upload?app_label=${appLabel}&model_name=${modelName}&object_id=${objectId}`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    return response.json() as Promise<MediaAsset>;
+  },
+  getMediaAssets: (appLabel: string, modelName: string, objectId: string) => 
+    apiFetch<MediaAsset[]>(`/media/${appLabel}/${modelName}/${objectId}`),
 
   // Breakdown
   getSceneBreakdownItems: (sceneId: string) => apiFetch<SceneBreakdownItem[]>(`/breakdown/scenes/${sceneId}/items`),

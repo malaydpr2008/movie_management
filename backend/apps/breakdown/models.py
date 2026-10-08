@@ -75,15 +75,3 @@ class SceneBreakdownItem(TimeStampedModel):
     def __str__(self):
         target = self.prop.name if self.prop else (f"{self.costume}" if self.costume else self.custom_notes)
         return f"[{self.element_type}] {target}"
-
-class ContinuityPhoto(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    scene = models.ForeignKey('narrative.Scene', on_delete=models.CASCADE, related_name='continuity_photos')
-    category = models.CharField(max_length=50, choices=CategoryChoices.choices, default=CategoryChoices.PROPS)
-    description = models.TextField(blank=True, default='')
-    image_url = models.URLField()
-    is_verified = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Continuity Photo - Scene {self.scene.scene_number} [{self.category}]"

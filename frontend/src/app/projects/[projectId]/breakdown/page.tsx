@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Camera,
   Layers,
   Users,
   Box,
@@ -19,13 +18,10 @@ import CharactersTab from '@/components/breakdown/CharactersTab';
 import PropsTab from '@/components/breakdown/PropsTab';
 import VfxSfxTab from '@/components/breakdown/VfxSfxTab';
 import ElementTaggingPanel from '@/components/breakdown/ElementTaggingPanel';
-import ContinuityGallery from '@/components/studio/ContinuityGallery';
-import { useProjectStore } from '@/stores/useProjectStore';
 
 export default function BreakdownCatalogsPage({ params }: { params: { projectId: string } }) {
   const { projectId } = params;
-  const { selectedSceneId } = useProjectStore();
-  const [activeTab, setActiveTab] = useState<'locations' | 'characters' | 'props' | 'vfx' | 'tagging' | 'continuity'>('locations');
+  const [activeTab, setActiveTab] = useState<'locations' | 'characters' | 'props' | 'vfx' | 'tagging'>('locations');
 
   const {
     data: summary,
@@ -116,19 +112,6 @@ export default function BreakdownCatalogsPage({ params }: { params: { projectId:
               <Wand2 className="w-3.5 h-3.5" />
               <span>VFX / SFX ({summary.total_vfx + summary.total_sfx})</span>
             </button>
-
-            
-            <button
-              onClick={() => setActiveTab('continuity')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg font-mono text-xs font-bold transition-all ${
-                activeTab === 'continuity'
-                  ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Continuity Vault</span>
-            </button>
             <button
               onClick={() => setActiveTab('tagging')}
 
@@ -181,16 +164,6 @@ export default function BreakdownCatalogsPage({ params }: { params: { projectId:
 
 
       {/* Active Tab Panel */}
-      {activeTab === 'continuity' && (
-        <div className="mb-6 h-[600px]">
-          {selectedSceneId ? (
-            <ContinuityGallery projectId={projectId} sceneId={selectedSceneId} />
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center bg-studio-950 border border-white/5 rounded-2xl p-12 text-slate-400 gap-3">
-              <Camera className="w-10 h-10 animate-bounce text-sky-400" />
-              <span className="font-mono text-sm">Select a Scene in the Outliner or Scene Builder to view its Continuity Vault.</span>
-            </div>
-          )}
         </div>
       )}
 

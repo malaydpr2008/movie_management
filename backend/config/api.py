@@ -9,11 +9,12 @@ import boto3
 from django.conf import settings
 
 from apps.narrative.models import Project, Act, Sequence, Scene
-from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem, ContinuityPhoto
+from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem
 from apps.shots.models import CameraSetup, Shot, Take, VfxShot
 from apps.logistics.models import ProductionUnit, ShootDay, StripboardItem, DailyProductionReport, CrewMember
 from apps.financials.models import BudgetAccount, LineItem
-from apps.core.models import ProjectMembership, BackgroundJob
+from apps.core.models import ProjectMembership, BackgroundJob, MediaAsset
+from django.contrib.contenttypes.models import ContentType
 from apps.narrative.services import parse_fountain_script
 from apps.logistics.tasks import generate_call_sheet_pdf
 from apps.breakdown.ai_copilot import run_scene_breakdown
@@ -411,14 +412,6 @@ class MasterLocationUpdateIn(Schema):
     sun_path_notes: Optional[str] = None
 
 
-class ContinuityPhotoOut(Schema):
-    id: uuid.UUID
-    scene_id: uuid.UUID
-    category: str
-    description: str
-    image_url: str
-    is_verified: bool
-    created_at: Any
 
 class SceneBreakdownItemOut(Schema):
     id: uuid.UUID
@@ -1437,61 +1430,7 @@ def create_take(request, payload: TakeIn):
 
 breakdown_router = Router(tags=["Breakdown Elements & Catalogs"])
 
-@breakdown_router.post("/projects/{project_id}/scenes/{scene_id}/continuity-photos", response=ContinuityPhotoOut)
-def upload_continuity_photo(request, project_id: uuid.UUID, scene_id: uuid.UUID, category: str, description: str = "", file: UploadedFile = File(...)):
-    scene = get_object_or_404(Scene, id=scene_id)
-    
-    file_path = f"continuity/{project_id}/{scene_id}/{uuid.uuid4()}_{file.name}"
-    from django.core.files.storage import default_storage
-    saved_path = default_storage.save(file_path, file)
-    file_url = default_storage.url(saved_path)
-    
-    photo = ContinuityPhoto.objects.create(
-        scene=scene,
-        category=category,
-        description=description,
-        image_url=file_url
-    )
-    return ContinuityPhotoOut(
-        id=photo.id,
-        scene_id=photo.scene_id,
-        category=photo.category,
-        description=photo.description,
-        image_url=photo.image_url,
-        is_verified=photo.is_verified,
-        created_at=photo.created_at
-    )
 
-@breakdown_router.get("/scenes/{scene_id}/continuity-photos", response=List[ContinuityPhotoOut])
-def get_continuity_photos(request, scene_id: uuid.UUID):
-    scene = get_object_or_404(Scene, id=scene_id)
-    photos = ContinuityPhoto.objects.filter(scene=scene).order_by('-created_at')
-    return [
-        ContinuityPhotoOut(
-            id=p.id,
-            scene_id=p.scene_id,
-            category=p.category,
-            description=p.description,
-            image_url=p.image_url,
-            is_verified=p.is_verified,
-            created_at=p.created_at
-        ) for p in photos
-    ]
-
-@breakdown_router.patch("/continuity-photos/{photo_id}/toggle-verify", response=ContinuityPhotoOut)
-def toggle_verify_continuity_photo(request, photo_id: uuid.UUID):
-    photo = get_object_or_404(ContinuityPhoto, id=photo_id)
-    photo.is_verified = not photo.is_verified
-    photo.save()
-    return ContinuityPhotoOut(
-        id=photo.id,
-        scene_id=photo.scene_id,
-        category=photo.category,
-        description=photo.description,
-        image_url=photo.image_url,
-        is_verified=photo.is_verified,
-        created_at=photo.created_at
-    )
 
 
 def _format_pages_eighths(total_eighths: int) -> str:
@@ -2844,7 +2783,65 @@ def list_assets(request):
 api.add_router("/studio", studio_router)
 api.add_router("/narrative", narrative_router)
 api.add_router("/shots", shots_router)
+
+class MediaAssetOut(Schema):
+    id: uuid.UUID
+    file_url: str
+    file_type: str
+    object_id: str
+    uploaded_at: Any
+
+media_router = Router(tags=["Universal Media Connector"])
+
+@media_router.post("/upload", response=MediaAssetOut)
+def upload_media(request, app_label: str, model_name: str, object_id: str, file: UploadedFile = File(...)):
+    content_type = get_object_or_404(ContentType, app_label=app_label, model=model_name)
+    
+    file_path = f"studio-media/{app_label}/{model_name}/{object_id}/{uuid.uuid4()}_{file.name}"
+    from django.core.files.storage import default_storage
+    saved_path = default_storage.save(file_path, file)
+    file_url = default_storage.url(saved_path)
+    
+    file_type = 'OTHER'
+    ext = file.name.split('.')[-1].lower() if '.' in file.name else ''
+    if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+        file_type = 'IMAGE'
+    elif ext in ['mp3', 'wav', 'aac']:
+        file_type = 'AUDIO'
+    elif ext == 'pdf':
+        file_type = 'PDF'
+    
+    asset = MediaAsset.objects.create(
+        file_url=file_url,
+        file_type=file_type,
+        content_type=content_type,
+        object_id=object_id
+    )
+    return MediaAssetOut(
+        id=asset.id,
+        file_url=asset.file_url,
+        file_type=asset.file_type,
+        object_id=asset.object_id,
+        uploaded_at=asset.uploaded_at
+    )
+
+@media_router.get("/{app_label}/{model_name}/{object_id}", response=List[MediaAssetOut])
+def get_media_assets(request, app_label: str, model_name: str, object_id: str):
+    content_type = get_object_or_404(ContentType, app_label=app_label, model=model_name)
+    assets = MediaAsset.objects.filter(content_type=content_type, object_id=object_id).order_by('-uploaded_at')
+    
+    return [
+        MediaAssetOut(
+            id=a.id,
+            file_url=a.file_url,
+            file_type=a.file_type,
+            object_id=a.object_id,
+            uploaded_at=a.uploaded_at
+        ) for a in assets
+    ]
+
 api.add_router("/breakdown", breakdown_router)
+api.add_router("/media", media_router)
 api.add_router("/logistics", logistics_router)
 api.add_router("/vfx", vfx_router)
 api.add_router("/financials", financials_router)
