@@ -106,6 +106,9 @@ class ADRCue(models.Model):
     character_name = models.CharField(max_length=255)
     line_text = models.TextField()
     timecode = models.CharField(max_length=50, blank=True, null=True)
-    reason = models.CharField(max_length=255) # e.g., "Airplane noise", "Mumbled", "Line change"
-    status = models.CharField(max_length=50, default='PENDING') # PENDING, RECORDED, APPROVED
+    reason = models.CharField(max_length=255)
+    status = models.CharField(max_length=50, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'narrative'

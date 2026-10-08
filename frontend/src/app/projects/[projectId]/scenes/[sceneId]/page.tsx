@@ -164,8 +164,10 @@ export default function SceneBuilderPage({
               }}
             />
           </div>
-          <ElementTaggingPanel projectId={projectId} sceneId={sceneId} />
-          <ADRPanel projectId={projectId} sceneId={sceneId} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
+            <ElementTaggingPanel projectId={projectId} sceneId={sceneId} />
+            <ADRPanel projectId={projectId} sceneId={sceneId} />
+          </div>
         </div>
 
         {/* Right Panel: Modular Tabbed Drawers */}
