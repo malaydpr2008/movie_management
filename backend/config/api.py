@@ -1050,6 +1050,66 @@ def delete_scene(request, scene_id: uuid.UUID):
     scene.delete()
     return {"success": True}
 
+class ADRCueIn(Schema):
+    character_name: str
+    line_text: str
+    timecode: Optional[str] = None
+    reason: str
+    status: str = 'PENDING'
+
+class ADRCueStatusIn(Schema):
+    status: str
+
+@narrative_router.get("/projects/{project_id}/scenes/{scene_id}/adr")
+def get_scene_adr_cues(request, project_id: uuid.UUID, scene_id: uuid.UUID):
+    scene = get_object_or_404(Scene, id=scene_id, sequence__act__project_id=project_id)
+    cues = scene.adr_cues.all().order_by('-created_at')
+    return [
+        {
+            "id": str(c.id),
+            "character_name": c.character_name,
+            "line_text": c.line_text,
+            "timecode": c.timecode,
+            "reason": c.reason,
+            "status": c.status,
+            "created_at": c.created_at
+        }
+        for c in cues
+    ]
+
+@narrative_router.post("/projects/{project_id}/scenes/{scene_id}/adr")
+def create_scene_adr_cue(request, project_id: uuid.UUID, scene_id: uuid.UUID, payload: ADRCueIn):
+    from apps.narrative.models import ADRCue
+    scene = get_object_or_404(Scene, id=scene_id, sequence__act__project_id=project_id)
+    c = ADRCue.objects.create(
+        scene=scene,
+        character_name=payload.character_name,
+        line_text=payload.line_text,
+        timecode=payload.timecode,
+        reason=payload.reason,
+        status=payload.status
+    )
+    return {
+        "id": str(c.id),
+        "character_name": c.character_name,
+        "line_text": c.line_text,
+        "timecode": c.timecode,
+        "reason": c.reason,
+        "status": c.status,
+        "created_at": c.created_at
+    }
+
+@narrative_router.patch("/projects/{project_id}/adr/{cue_id}/status")
+def update_adr_cue_status(request, project_id: uuid.UUID, cue_id: uuid.UUID, payload: ADRCueStatusIn):
+    from apps.narrative.models import ADRCue
+    cue = get_object_or_404(ADRCue, id=cue_id, scene__sequence__act__project_id=project_id)
+    cue.status = payload.status
+    cue.save()
+    return {
+        "id": str(cue.id),
+        "status": cue.status
+    }
+
 # ---------------------------------------------------------------------------
 # ROUTER: SHOTS & COVERAGE
 # ---------------------------------------------------------------------------

@@ -99,3 +99,13 @@ class Scene(TimeStampedModel):
             return f"{remainder}/8"
         else:
             return f"{whole}"
+
+class ADRCue(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    scene = models.ForeignKey('Scene', on_delete=models.CASCADE, related_name='adr_cues')
+    character_name = models.CharField(max_length=255)
+    line_text = models.TextField()
+    timecode = models.CharField(max_length=50, blank=True, null=True)
+    reason = models.CharField(max_length=255) # e.g., "Airplane noise", "Mumbled", "Line change"
+    status = models.CharField(max_length=50, default='PENDING') # PENDING, RECORDED, APPROVED
+    created_at = models.DateTimeField(auto_now_add=True)

@@ -24,6 +24,7 @@ import { ShotsSetupsDrawer } from '@/components/studio/ShotsSetupsDrawer';
 import { DepartmentBreakdownDrawer } from '@/components/studio/DepartmentBreakdownDrawer';
 import { LogisticsPageMathDrawer } from '@/components/studio/LogisticsPageMathDrawer';
 import ElementTaggingPanel from '@/components/breakdown/ElementTaggingPanel';
+import ADRPanel from '@/components/studio/ADRPanel';
 import { useProjectStore } from '@/stores/useProjectStore';
 
 export default function SceneBuilderPage({
@@ -164,6 +165,7 @@ export default function SceneBuilderPage({
             />
           </div>
           <ElementTaggingPanel projectId={projectId} sceneId={sceneId} />
+          <ADRPanel projectId={projectId} sceneId={sceneId} />
         </div>
 
         {/* Right Panel: Modular Tabbed Drawers */}
