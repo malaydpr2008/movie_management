@@ -20,6 +20,7 @@ interface Props {
 }
 
 export default function LocationsTab({ projectId, onOpenMedia }: Props) {
+  const queryClient = useQueryClient();
   const { data: dataArray = [], isLoading } = useQuery<MasterLocationDetail[]>({
     queryKey: ['projectLocations', projectId],
     queryFn: () => api.getProjectLocations(projectId),
@@ -101,6 +102,13 @@ export default function LocationsTab({ projectId, onOpenMedia }: Props) {
                   </span>
                   <div>
                     <h4 className="font-bold text-base text-white">{loc.name}</h4>
+                  <button
+                    onClick={() => onOpenMedia({ appLabel: 'breakdown', modelName: 'masterlocation', objectId: loc.id })}
+                    className="p-1.5 bg-studio-800 hover:bg-studio-700 rounded text-slate-400 hover:text-sky-400 transition-colors ml-2"
+                    title="Attach Media"
+                  >
+                    <Paperclip className="w-4 h-4"/>
+                  </button>
                     {loc.address && (
                       <p className="text-xs text-slate-300 mt-0.5">{loc.address}</p>
                     )}
@@ -141,11 +149,11 @@ export default function LocationsTab({ projectId, onOpenMedia }: Props) {
                 </span>
               </div>
 
-              {loc.linked_scenes.length === 0 ? (
+              {loc.linked_scenes?.length === 0 ? (
                 <p className="text-[11px] text-slate-600 font-mono italic">No scenes linked to this location yet</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {loc.linked_scenes.map((sc) => (
+                  {loc.linked_scenes?.map((sc) => (
                     <Link
                       key={sc.id}
                       href={`/projects/${projectId}/scenes/${sc.id}`}

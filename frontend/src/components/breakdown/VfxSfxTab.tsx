@@ -19,6 +19,7 @@ interface Props {
 }
 
 export default function VfxSfxTab({ projectId, onOpenMedia }: Props) {
+  const queryClient = useQueryClient();
   const { data: dataArray = [], isLoading } = useQuery<VFXSfxItem[]>({
     queryKey: ['projectVfx', projectId],
     queryFn: () => api.getProjectVfx(projectId),
@@ -122,7 +123,7 @@ export default function VfxSfxTab({ projectId, onOpenMedia }: Props) {
 
                     {/* Scene # */}
                     <td className="px-4 py-3.5 text-center font-mono font-black text-sm text-white">
-                      #{item.scene_number}
+                      #{item.scene_id}
                     </td>
 
                     {/* Description */}

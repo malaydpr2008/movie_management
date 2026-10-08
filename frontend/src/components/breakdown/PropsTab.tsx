@@ -21,6 +21,7 @@ interface Props {
 }
 
 export default function PropsTab({ projectId, onOpenMedia }: Props) {
+  const queryClient = useQueryClient();
   const { data: dataArray = [], isLoading } = useQuery<PropDetail[]>({
     queryKey: ['projectProps', projectId],
     queryFn: () => api.getProjectProps(projectId),
@@ -185,11 +186,11 @@ export default function PropsTab({ projectId, onOpenMedia }: Props) {
 
                     {/* Linked Scenes */}
                     <td className="px-5 py-3.5">
-                      {prop.linked_scenes.length === 0 ? (
+                      {prop.linked_scenes?.length === 0 ? (
                         <span className="text-slate-600 font-mono text-[11px] italic">Not tagged in scenes</span>
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
-                          {prop.linked_scenes.map((sc) => (
+                          {prop.linked_scenes?.map((sc) => (
                             <Link
                               key={sc.id}
                               href={`/projects/${projectId}/scenes/${sc.id}`}

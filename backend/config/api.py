@@ -473,9 +473,9 @@ class VFXSfxItemOut(Schema):
     scene_id: uuid.UUID
 
 class CatalogsOut(Schema):
-    characters: List[CharacterOut]
-    props: List[PropOut]
-    locations: List[MasterLocationOut]
+    characters: List[CharacterOut] = Field(default_factory=list)
+    props: List[PropOut] = Field(default_factory=list)
+    locations: List[MasterLocationOut] = Field(default_factory=list)
 
 # ---------------------------------------------------------------------------
 # SCHEMAS - Logistics

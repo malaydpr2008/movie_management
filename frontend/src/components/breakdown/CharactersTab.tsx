@@ -20,6 +20,7 @@ interface Props {
 }
 
 export default function CharactersTab({ projectId, onOpenMedia }: Props) {
+  const queryClient = useQueryClient();
   const { data: dataArray = [], isLoading } = useQuery<CharacterDetail[]>({
     queryKey: ['projectCharacters', projectId],
     queryFn: () => api.getProjectCharacters(projectId),
