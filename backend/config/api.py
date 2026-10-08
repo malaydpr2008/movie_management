@@ -435,6 +435,19 @@ class VFXSFXItemOut(Schema):
     custom_notes: str
     is_continuity_critical: bool
 
+class VfxShotOut(Schema):
+    id: uuid.UUID
+    scene_id: uuid.UUID
+    scene_number: str
+    vfx_id: str
+    status: str
+    description: str
+    frame_count: int
+    vendor_name: str
+
+class VfxShotStatusUpdateIn(Schema):
+    status: str
+
 class BreakdownSummaryOut(Schema):
     total_locations: int
     total_characters: int
@@ -618,6 +631,38 @@ def create_project(request, payload: ProjectCreateIn):
     except Exception as e:
         from ninja.errors import HttpError
         raise HttpError(500, f"Failed to create project: {str(e)}")
+
+@studio_router.get("/projects/{project_id}/vfx", response=List[VfxShotOut])
+def get_vfx_shots(request, project_id: uuid.UUID):
+    shots = VfxShot.objects.filter(scene__sequence__act__project_id=project_id)
+    return [
+        VfxShotOut(
+            id=s.id,
+            scene_id=s.scene_id,
+            scene_number=s.scene.scene_number,
+            vfx_id=s.vfx_id,
+            status=s.status,
+            description=s.description,
+            frame_count=s.frame_count,
+            vendor_name=s.vendor_name
+        ) for s in shots
+    ]
+
+@studio_router.patch("/projects/{project_id}/vfx/{shot_id}/status", response=VfxShotOut)
+def update_vfx_status(request, project_id: uuid.UUID, shot_id: uuid.UUID, payload: VfxShotStatusUpdateIn):
+    shot = get_object_or_404(VfxShot, id=shot_id, scene__sequence__act__project_id=project_id)
+    shot.status = payload.status
+    shot.save()
+    return VfxShotOut(
+        id=shot.id,
+        scene_id=shot.scene_id,
+        scene_number=shot.scene.scene_number,
+        vfx_id=shot.vfx_id,
+        status=shot.status,
+        description=shot.description,
+        frame_count=shot.frame_count,
+        vendor_name=shot.vendor_name
+    )
 
 # ---------------------------------------------------------------------------
 # ROUTER: NARRATIVE
