@@ -20,7 +20,6 @@ import {
 import Link from 'next/link';
 import { api, SceneDetail, SceneCoverage, SceneBreakdownItem } from '@/lib/api';
 import { LinedScriptEditor } from '@/components/studio/LinedScriptEditor';
-import { ShotsSetupsDrawer } from '@/components/studio/ShotsSetupsDrawer';
 import { DepartmentBreakdownDrawer } from '@/components/studio/DepartmentBreakdownDrawer';
 import { LogisticsPageMathDrawer } from '@/components/studio/LogisticsPageMathDrawer';
 import { useProjectStore } from '@/stores/useProjectStore';
@@ -148,7 +147,6 @@ export default function SceneBuilderPage({
           </button>
         </div>
       </div>
-
       {/* Split-Screen Studio Workspace */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Screenplay Editor & Lined Script View */}
@@ -171,21 +169,6 @@ export default function SceneBuilderPage({
           <aside className="w-96 lg:w-[480px] shrink-0 border-l border-white/5 bg-studio-900 flex flex-col overflow-hidden transition-all duration-300">
             {/* Tab Bar */}
             <div className="p-2 border-b border-white/5 bg-studio-950 flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => setRightDrawerTab('shots')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                  rightDrawerTab === 'shots'
-                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30 shadow-sm'
-                    : 'text-slate-400 hover:text-white hover:bg-studio-850'
-                }`}
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span>Shots & Setups</span>
-                <span className="font-mono text-[10px] bg-studio-950/80 px-1.5 py-0.2 rounded">
-                  {allShots.length}
-                </span>
-              </button>
-
               <button
                 onClick={() => setRightDrawerTab('breakdown')}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
@@ -216,18 +199,6 @@ export default function SceneBuilderPage({
 
             {/* Tab Content Drawer Area */}
             <div className="flex-1 overflow-y-auto p-5">
-              {rightDrawerTab === 'shots' && (
-                <ShotsSetupsDrawer
-                  sceneId={scene.id}
-                  setups={setups}
-                  scriptBlocks={scriptBlocks}
-                  onCoverageUpdated={() => {
-                    refetchCoverage();
-                    refetchScene();
-                  }}
-                />
-              )}
-
               {rightDrawerTab === 'breakdown' && (
                 <DepartmentBreakdownDrawer
                   sceneId={scene.id}

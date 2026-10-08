@@ -153,26 +153,20 @@ export interface Take {
   shot_id: string;
   take_number: number;
   is_circle_take: boolean;
-  camera_card: string;
-  sound_roll: string;
-  timecode_in: string;
-  timecode_out: string;
-  script_supervisor_notes: string;
+  duration_seconds?: number;
+  director_notes: string;
   created_at: string;
 }
 
 export interface Shot {
   id: string;
   setup_id: string;
-  setup_code: string;
   shot_code: string;
-  order_index: string;
   shot_size: string;
-  focal_length: string;
-  camera_movement: string;
-  framing_description: string;
-  storyboard_frame_url: string;
-  covered_script_blocks: string[];
+  lens?: string;
+  description: string;
+  vfx_required: boolean;
+  created_at: string;
   takes: Take[];
 }
 
@@ -180,8 +174,9 @@ export interface CameraSetup {
   id: string;
   scene_id: string;
   setup_code: string;
-  lighting_package_notes: string;
-  overhead_floorplan_url: string;
+  camera_movement: string;
+  equipment_notes: string;
+  created_at?: string;
   shots: Shot[];
 }
 
@@ -628,57 +623,25 @@ export const api = {
     }),
 
   // Shots & Coverage
-  getSceneCoverage: (sceneId: string) => apiFetch<SceneCoverage>(`/shots/scenes/${sceneId}/coverage`),
-  createSetup: (payload: { scene_id: string; setup_code: string; lighting_package_notes?: string; overhead_floorplan_url?: string }) =>
+  getCameraTree: (projectId: string, sceneId: string) => apiFetch<SceneCoverage>(`/shots/scenes/${sceneId}/coverage`),
+  createCameraSetup: (projectId: string, sceneId: string, payload: { setup_code: string; camera_movement: string; equipment_notes?: string }) =>
     apiFetch<CameraSetup>("/shots/setups", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ scene_id: sceneId, ...payload }),
     }),
-  createShot: (payload: {
-    setup_id: string;
-    shot_code: string;
-    order_index?: string;
-    shot_size: string;
-    focal_length: string;
-    camera_movement: string;
-    framing_description?: string;
-    storyboard_frame_url?: string;
-    covered_script_blocks?: string[];
-  }) =>
+  createShot: (projectId: string, sceneId: string, setupId: string, payload: { shot_code: string; shot_size: string; lens?: string; vfx_required?: boolean; description?: string }) =>
     apiFetch<Shot>("/shots/shots", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ setup_id: setupId, ...payload }),
     }),
-  updateShot: (shotId: string, payload: Partial<Shot>) =>
-    apiFetch<Shot>(`/shots/shots/${shotId}`, {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    }),
-  deleteShot: (shotId: string) =>
-    apiFetch<{ success: boolean }>(`/shots/shots/${shotId}`, {
-      method: "DELETE",
-    }),
-  createTake: (payload: {
-    shot_id: string;
-    take_number: number;
-    is_circle_take?: boolean;
-    camera_card?: string;
-    sound_roll?: string;
-    timecode_in?: string;
-    timecode_out?: string;
-    script_supervisor_notes?: string;
-  }) =>
+  createTake: (projectId: string, sceneId: string, shotId: string, payload: { take_number: number; is_circle_take?: boolean }) =>
     apiFetch<Take>("/shots/takes", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ shot_id: shotId, ...payload }),
     }),
   toggleCircleTake: (takeId: string) =>
     apiFetch<Take>(`/shots/takes/${takeId}/toggle-circle`, {
       method: "PATCH",
-    }),
-  deleteTake: (takeId: string) =>
-    apiFetch<{ success: boolean }>(`/shots/takes/${takeId}`, {
-      method: "DELETE",
     }),
 
   // Breakdown

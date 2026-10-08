@@ -1,36 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Video, Move, Eye, Clock, Plus, Trash2, Wand2, CheckCircle2, ChevronDown, ChevronRight, Camera } from 'lucide-react';
-
-interface Take {
-  id: string;
-  shot_id: string;
-  take_number: number;
-  is_circle_take: boolean;
-  duration_seconds: number | null;
-  director_notes: string;
-}
-
-interface Shot {
-  id: string;
-  setup_id: string;
-  shot_code: string;
-  shot_size: string;
-  lens: string | null;
-  description: string;
-  vfx_required: boolean;
-  takes: Take[];
-}
-
-interface CameraSetup {
-  id: string;
-  scene_id: string;
-  setup_code: string;
-  camera_movement: string;
-  equipment_notes: string;
-  shots: Shot[];
-}
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Video, Plus, Wand2, CheckCircle2, Camera } from 'lucide-react';
+import { api, SceneCoverage } from '@/lib/api';
 
 const SHOT_SIZES = [
   { value: 'WS', label: 'Wide Shot' },
@@ -51,8 +24,15 @@ const CAMERA_MOVEMENTS = [
 ];
 
 export default function ShotListBoard({ projectId, sceneId }: { projectId: string; sceneId: string }) {
-  const [setups, setSetups] = useState<CameraSetup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: coverage, isLoading } = useQuery<SceneCoverage>({
+    queryKey: ['cameraTree', projectId, sceneId],
+    queryFn: () => api.getCameraTree(projectId, sceneId),
+    enabled: Boolean(projectId && sceneId),
+  });
+
+  const setups = coverage?.setups || [];
 
   // Form states
   const [newSetupCode, setNewSetupCode] = useState('A');
@@ -66,92 +46,72 @@ export default function ShotListBoard({ projectId, sceneId }: { projectId: strin
   const [newShotDesc, setNewShotDesc] = useState('');
   const [newVfx, setNewVfx] = useState(false);
 
-  useEffect(() => {
-    fetchSetups();
-  }, [sceneId]);
-
-  const fetchSetups = async () => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/narrative/scenes/${sceneId}/setups`);
-      if (res.ok) {
-        const data = await res.json();
-        setSetups(data.setups || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+  // Mutations
+  const createSetupMut = useMutation({
+    mutationFn: (payload: any) => api.createCameraSetup(projectId, sceneId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cameraTree', projectId, sceneId] });
+      setNewSetupCode(String.fromCharCode(newSetupCode.charCodeAt(0) + 1));
+      setNewEquipmentNotes('');
     }
-  };
+  });
 
-  const handleAddSetup = async (e: React.FormEvent) => {
+  const createShotMut = useMutation({
+    mutationFn: (payload: any) => api.createShot(projectId, sceneId, payload.setupId, payload.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cameraTree', projectId, sceneId] });
+      setActiveSetupIdForShot(null);
+      setNewShotCode('');
+      setNewShotDesc('');
+      setNewLens('');
+      setNewVfx(false);
+    }
+  });
+
+  const createTakeMut = useMutation({
+    mutationFn: (payload: any) => api.createTake(projectId, sceneId, payload.shotId, payload.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cameraTree', projectId, sceneId] });
+    }
+  });
+
+  const toggleCircleMut = useMutation({
+    mutationFn: (takeId: string) => api.toggleCircleTake(takeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cameraTree', projectId, sceneId] });
+    }
+  });
+
+  const handleAddSetup = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/narrative/setups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scene_id: sceneId,
-          setup_code: newSetupCode,
-          camera_movement: newCameraMovement,
-          equipment_notes: newEquipmentNotes
-        })
-      });
-      if (res.ok) {
-        await fetchSetups();
-        setNewSetupCode(String.fromCharCode(newSetupCode.charCodeAt(0) + 1));
-        setNewEquipmentNotes('');
+    createSetupMut.mutate({
+      setup_code: newSetupCode,
+      camera_movement: newCameraMovement,
+      equipment_notes: newEquipmentNotes
+    });
+  };
+
+  const handleAddShot = (setupId: string) => {
+    createShotMut.mutate({
+      setupId,
+      data: {
+        shot_code: newShotCode,
+        shot_size: newShotSize,
+        lens: newLens || undefined,
+        description: newShotDesc,
+        vfx_required: newVfx
       }
-    } catch (err) { console.error(err); }
+    });
   };
 
-  const handleAddShot = async (setupId: string) => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/narrative/shots`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          setup_id: setupId,
-          shot_code: newShotCode,
-          shot_size: newShotSize,
-          lens: newLens || null,
-          description: newShotDesc,
-          vfx_required: newVfx
-        })
-      });
-      if (res.ok) {
-        await fetchSetups();
-        setActiveSetupIdForShot(null);
-        setNewShotCode('');
-        setNewShotDesc('');
-        setNewLens('');
-        setNewVfx(false);
+  const handleAddTake = (shotId: string, currentTakes: number) => {
+    createTakeMut.mutate({
+      shotId,
+      data: {
+        take_number: currentTakes + 1,
+        is_circle_take: false
       }
-    } catch (err) { console.error(err); }
-  };
-
-  const handleAddTake = async (shotId: string, currentTakes: number) => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/narrative/takes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shot_id: shotId,
-          take_number: currentTakes + 1,
-          is_circle_take: false
-        })
-      });
-      if (res.ok) await fetchSetups();
-    } catch (err) { console.error(err); }
-  };
-
-  const handleToggleCircle = async (takeId: string) => {
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/narrative/takes/${takeId}/toggle-circle`, {
-        method: 'PATCH'
-      });
-      if (res.ok) await fetchSetups();
-    } catch (err) { console.error(err); }
+    });
   };
 
   const getLabel = (options: {value: string, label: string}[], val: string) => {
@@ -168,7 +128,7 @@ export default function ShotListBoard({ projectId, sceneId }: { projectId: strin
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-6">
-        {loading ? (
+        {isLoading ? (
           <div className="h-32 flex items-center justify-center">
             <span className="font-mono text-xs text-slate-500 animate-pulse">Loading coverage...</span>
           </div>
@@ -200,114 +160,160 @@ export default function ShotListBoard({ projectId, sceneId }: { projectId: strin
                 </div>
 
                 {activeSetupIdForShot === setup.id && (
-                  <div className="p-4 bg-emerald-900/20 border-b border-emerald-500/20 flex flex-wrap gap-3 items-end">
-                    <input type="text" placeholder="Shot (e.g. A1)" value={newShotCode} onChange={e=>setNewShotCode(e.target.value)} className="w-24 bg-studio-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-                    <select value={newShotSize} onChange={e=>setNewShotSize(e.target.value)} className="bg-studio-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
-                      {SHOT_SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                    </select>
-                    <input type="text" placeholder="Lens" value={newLens} onChange={e=>setNewLens(e.target.value)} className="w-24 bg-studio-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-                    <input type="text" placeholder="Desc" value={newShotDesc} onChange={e=>setNewShotDesc(e.target.value)} className="flex-1 bg-studio-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white" />
-                    <div className="flex items-center gap-2 px-3 py-2 bg-studio-950 border border-white/10 rounded-lg cursor-pointer" onClick={() => setNewVfx(!newVfx)}>
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${newVfx ? 'bg-purple-500 border-purple-500' : 'border-slate-600'}`}>
-                        {newVfx && <Wand2 className="w-3 h-3 text-white" />}
-                      </div>
-                      <span className="text-xs font-bold text-purple-400">VFX</span>
+                  <div className="p-4 bg-black/40 border-b border-white/10 animate-in slide-in-from-top-2">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                      <input 
+                        type="text" 
+                        placeholder="Shot (e.g. A1)" 
+                        value={newShotCode} 
+                        onChange={(e) => setNewShotCode(e.target.value)}
+                        className="bg-studio-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                      />
+                      <select 
+                        value={newShotSize}
+                        onChange={(e) => setNewShotSize(e.target.value)}
+                        className="bg-studio-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                      >
+                        {SHOT_SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      </select>
+                      <input 
+                        type="text" 
+                        placeholder="Lens (e.g. 50mm)" 
+                        value={newLens} 
+                        onChange={(e) => setNewLens(e.target.value)}
+                        className="bg-studio-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                      />
+                      <label className="flex items-center gap-2 text-xs text-slate-300">
+                        <input 
+                          type="checkbox" 
+                          checked={newVfx}
+                          onChange={(e) => setNewVfx(e.target.checked)}
+                          className="rounded bg-studio-900 border-white/10"
+                        />
+                        VFX Required
+                      </label>
                     </div>
-                    <button onClick={() => handleAddShot(setup.id)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-lg">Save</button>
-                    <button onClick={() => setActiveSetupIdForShot(null)} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-lg">Cancel</button>
+                    <input 
+                      type="text" 
+                      placeholder="Shot Description..." 
+                      value={newShotDesc} 
+                      onChange={(e) => setNewShotDesc(e.target.value)}
+                      className="w-full bg-studio-900 border border-white/10 rounded-lg px-3 py-2 text-xs text-white mb-3"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => setActiveSetupIdForShot(null)}
+                        className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={() => handleAddShot(setup.id)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors"
+                      >
+                        Save Shot
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                <div className="p-2 space-y-2">
-                  {setup.shots.length === 0 && (
-                    <div className="p-4 text-center text-slate-500 text-xs font-mono">No shots in this setup.</div>
-                  )}
-                  {setup.shots.map(shot => (
-                    <div key={shot.id} className="bg-studio-950 border border-white/5 rounded-lg p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono font-bold text-slate-300 bg-white/5 px-2 py-1 rounded">
-                            {shot.shot_code}
-                          </span>
-                          <span className="text-xs font-bold px-2 py-1 bg-sky-500/20 text-sky-400 rounded">
-                            {getLabel(SHOT_SIZES, shot.shot_size)}
-                          </span>
-                          {shot.lens && (
-                            <span className="text-xs font-mono text-slate-400">
-                              {shot.lens}
+                <div className="divide-y divide-white/5">
+                  {setup.shots.map((shot) => (
+                    <div key={shot.id} className="p-4 pl-6 bg-studio-900/40 hover:bg-studio-900/60 transition-colors">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-sm font-black text-sky-400">
+                              {shot.shot_code}
                             </span>
-                          )}
-                          {shot.vfx_required && (
-                            <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-purple-500/20 text-purple-400 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.3)] animate-pulse">
-                              VFX
+                            <span className="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[10px] font-bold">
+                              {getLabel(SHOT_SIZES, shot.shot_size)}
                             </span>
+                            {shot.lens && (
+                              <span className="text-[10px] font-mono text-slate-400 border border-white/10 px-1.5 py-0.5 rounded">
+                                {shot.lens}
+                              </span>
+                            )}
+                            {shot.vfx_required && (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-fuchsia-500/20 text-fuchsia-300 text-[10px] font-bold animate-pulse">
+                                <Wand2 className="w-3 h-3" /> VFX
+                              </span>
+                            )}
+                          </div>
+                          {shot.description && (
+                            <p className="text-xs text-slate-300 leading-relaxed">{shot.description}</p>
                           )}
-                        </div>
-                        <button 
-                          onClick={() => handleAddTake(shot.id, shot.takes.length)}
-                          className="text-[10px] font-bold uppercase bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-slate-400 hover:text-white transition-colors"
-                        >
-                          + Add Take
-                        </button>
-                      </div>
-                      <p className="text-sm text-slate-400 mt-2 pl-12">{shot.description}</p>
-                      
-                      {/* Takes Row */}
-                      {shot.takes.length > 0 && (
-                        <div className="mt-3 pl-12 flex flex-wrap gap-2">
-                          {shot.takes.map(take => (
-                            <button
-                              key={take.id}
-                              onClick={() => handleToggleCircle(take.id)}
-                              className={`px-3 py-1.5 rounded-full text-xs font-bold font-mono transition-all border ${
-                                take.is_circle_take 
-                                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
-                                  : 'bg-white/5 text-slate-500 border-white/10 hover:bg-white/10 hover:text-slate-300'
-                              }`}
+                          
+                          {/* Takes Row */}
+                          <div className="mt-3 flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-mono text-slate-500 uppercase mr-1">Takes:</span>
+                            {shot.takes.map((take) => (
+                              <button
+                                key={take.id}
+                                onClick={() => toggleCircleMut.mutate(take.id)}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-sm ${
+                                  take.is_circle_take 
+                                    ? 'bg-emerald-500 text-white shadow-emerald-500/20 scale-110 ring-2 ring-emerald-400 ring-offset-2 ring-offset-studio-900' 
+                                    : 'bg-studio-800 text-slate-400 hover:bg-studio-700 border border-white/5 hover:text-white'
+                                }`}
+                              >
+                                {take.take_number}
+                              </button>
+                            ))}
+                            <button 
+                              onClick={() => handleAddTake(shot.id, shot.takes.length)}
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 border border-dashed border-white/20 transition-colors"
                             >
-                              Take {take.take_number}
+                              <Plus className="w-4 h-4" />
                             </button>
-                          ))}
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   ))}
+                  {setup.shots.length === 0 && activeSetupIdForShot !== setup.id && (
+                    <div className="p-6 text-center text-xs text-slate-500 font-mono">
+                      No shots defined. Add your first angle.
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
-            
-            {/* Add New Setup Form */}
-            <div className="bg-white/5 border border-dashed border-white/20 rounded-xl p-4">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Add New Camera Setup</h4>
-              <form onSubmit={handleAddSetup} className="flex gap-3">
-                <input 
-                  type="text" 
-                  value={newSetupCode} 
-                  onChange={e => setNewSetupCode(e.target.value)} 
-                  placeholder="Setup Code"
-                  className="w-16 bg-studio-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white font-mono"
-                />
-                <select
-                  value={newCameraMovement}
-                  onChange={e => setNewCameraMovement(e.target.value)}
-                  className="bg-studio-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
-                >
-                  {CAMERA_MOVEMENTS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </select>
-                <input 
-                  type="text" 
-                  value={newEquipmentNotes} 
-                  onChange={e => setNewEquipmentNotes(e.target.value)} 
-                  placeholder="Equipment Notes (e.g. 50ft Track)"
-                  className="flex-1 bg-studio-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
-                />
-                <button type="submit" className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-sm rounded-lg">
-                  Create Setup
-                </button>
-              </form>
-            </div>
           </>
         )}
+      </div>
+
+      <div className="p-4 bg-studio-900/90 backdrop-blur-md border-t border-white/10">
+        <form onSubmit={handleAddSetup} className="flex gap-2">
+          <input 
+            type="text" 
+            placeholder="Setup (A)" 
+            value={newSetupCode} 
+            onChange={(e) => setNewSetupCode(e.target.value)}
+            className="w-20 bg-studio-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white font-mono"
+            required
+          />
+          <select 
+            value={newCameraMovement}
+            onChange={(e) => setNewCameraMovement(e.target.value)}
+            className="flex-1 bg-studio-950 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+          >
+            {CAMERA_MOVEMENTS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+          <button 
+            type="submit"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-sm transition-colors shrink-0"
+          >
+            Add Setup
+          </button>
+        </form>
+        <input 
+          type="text" 
+          placeholder="Equipment Notes (e.g. 50ft Technocrane, 3-Axis Head)" 
+          value={newEquipmentNotes} 
+          onChange={(e) => setNewEquipmentNotes(e.target.value)}
+          className="w-full mt-2 bg-studio-950 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+        />
       </div>
     </div>
   );
