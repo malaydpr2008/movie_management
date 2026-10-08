@@ -140,6 +140,7 @@ AWS_STORAGE_BUCKET_NAME = "studio-media"
 AWS_S3_ENDPOINT_URL = "http://minio:9000"
 AWS_S3_CUSTOM_DOMAIN = "localhost:9000/studio-media"
 AWS_S3_USE_SSL = False
+AWS_S3_SECURE_URLS = False
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3.S3Storage",

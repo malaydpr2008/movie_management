@@ -1,5 +1,6 @@
 "use client";
 
+import MediaTriggerButton from '@/components/ui/MediaTriggerButton';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import {
@@ -102,13 +103,7 @@ export default function LocationsTab({ projectId, onOpenMedia }: Props) {
                   </span>
                   <div>
                     <h4 className="font-bold text-base text-white">{loc.name}</h4>
-                  <button
-                    onClick={() => onOpenMedia({ appLabel: 'breakdown', modelName: 'masterlocation', objectId: loc.id })}
-                    className="p-1.5 bg-studio-800 hover:bg-studio-700 rounded text-slate-400 hover:text-sky-400 transition-colors ml-2"
-                    title="Attach Media"
-                  >
-                    <Paperclip className="w-4 h-4"/>
-                  </button>
+                  <MediaTriggerButton appLabel="narrative" modelName="masterlocation" objectId={loc.id} onOpenMedia={onOpenMedia} />
                     {loc.address && (
                       <p className="text-xs text-slate-300 mt-0.5">{loc.address}</p>
                     )}

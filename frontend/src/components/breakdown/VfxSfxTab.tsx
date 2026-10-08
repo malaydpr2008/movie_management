@@ -1,5 +1,6 @@
 "use client";
 
+import MediaTriggerButton from '@/components/ui/MediaTriggerButton';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, VFXSfxItem } from '@/lib/api';
 import React, { useState } from 'react';
