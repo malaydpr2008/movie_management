@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { api, SequenceDetail } from '@/lib/api';
+import { useSequenceDetail } from '@/hooks/useNarrative';
 import { toast } from '@/stores/useToastStore';
 import { NewSceneModal } from '@/components/outliner/NewSceneModal';
 
@@ -53,11 +54,7 @@ export default function SequenceWorkspacePage({
     data: sequence,
     isLoading,
     refetch,
-  } = useQuery<SequenceDetail>({
-    queryKey: ['sequenceDetail', sequenceId],
-    queryFn: () => api.getSequenceDetail(sequenceId),
-    enabled: Boolean(sequenceId),
-  });
+  } = useSequenceDetail(sequenceId);
 
   useEffect(() => {
     if (sequence) {

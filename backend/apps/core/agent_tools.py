@@ -4,10 +4,9 @@ import os
 import uuid
 from urllib.parse import urlparse
 from langchain_core.tools import tool
-from langchain_qdrant import QdrantVectorStore
-from qdrant_client import QdrantClient
-from langchain_ollama import OllamaEmbeddings
 from django.db import connection
+from apps.core.infrastructure.vector.qdrant_vector_adapter import QdrantVectorAdapter
+from apps.core.infrastructure.llm.ollama_provider import OllamaLLMProvider
 
 @tool
 def list_database_tables() -> str:
@@ -92,26 +91,12 @@ def search_studio_documents(query: str) -> str:
     to answer semantic queries using RAG.
     """
     try:
-        embeddings = OllamaEmbeddings(
-            model="bge-m3:latest",
-            base_url="http://host.docker.internal:11434"
-        )
-        qdrant_client = QdrantClient(url="http://qdrant:6333")
-        store = QdrantVectorStore(
-            client=qdrant_client,
-            collection_name="studio_documents",
-            embedding=embeddings,
-        )
-        
-        results = store.similarity_search(query, k=4)
-        
-        formatted_results = []
-        for res in results:
-            formatted_results.append({
-                "content": res.page_content,
-                "metadata": res.metadata
-            })
-            
+        adapter = QdrantVectorAdapter()
+        results = adapter.search(query, limit=4)
+        formatted_results = [
+            {"content": res.content, "metadata": res.metadata}
+            for res in results
+        ]
         return json.dumps(formatted_results)
     except Exception as e:
         return json.dumps({"error": str(e)})
@@ -121,8 +106,6 @@ def analyze_production_image(image_url: str, question: str) -> str:
     """
     Analyze a production image (storyboard, costume reference, VFX plate) to answer questions about it.
     """
-    from langchain_ollama import ChatOllama
-    from langchain_core.messages import HumanMessage
     from django.conf import settings
     
     try:
@@ -137,18 +120,12 @@ def analyze_production_image(image_url: str, question: str) -> str:
         
         mime_type = "image/png" if filename.lower().endswith("png") else "image/jpeg"
         
-        vision_llm = ChatOllama(
-            model="hf.co/mradermacher/Qwen3-VL-8B-Instruct-GGUF:Q4_K_M", 
-            base_url="http://host.docker.internal:11434", 
-            temperature=0.1
+        provider = OllamaLLMProvider()
+        return provider.analyze_image(
+            image_base64=b64_image,
+            prompt=question,
+            mime_type=mime_type,
         )
-        
-        msg = HumanMessage(content=[
-            {"type": "text", "text": question}, 
-            {"type": "image_url", "image_url": f"data:{mime_type};base64,{b64_image}"}
-        ])
-        response = vision_llm.invoke([msg])
-        return response.content
     except Exception as e:
         return f"CRITICAL VISION ERROR: {str(e)}"
 
@@ -162,8 +139,6 @@ def audit_scene_breakdown(project_id: str, scene_number: str) -> str:
         from apps.narrative.models import Scene
         from apps.breakdown.models import SceneBreakdownItem
         from apps.shots.models import VfxShot
-        from langchain_ollama import ChatOllama
-        from langchain_core.messages import HumanMessage
         
         project_uuid = uuid.UUID(project_id)
         scene = Scene.objects.get(sequence__act__project_id=project_uuid, scene_number=str(scene_number))
@@ -179,8 +154,6 @@ def audit_scene_breakdown(project_id: str, scene_number: str) -> str:
         for vfx in vfx_shots:
             logged_elements.append(f"VFX: {vfx.description}")
             
-        llm = ChatOllama(model="qwen3.5:9b", base_url="http://host.docker.internal:11434", temperature=0.1)
-        
         prompt = f"""
 You are an expert Script Auditor. Review the following scene script and the list of currently logged elements (Props, Wardrobe, VFX).
 Identify any physical props, wardrobe, or VFX requirements mentioned in the script that are MISSING from the logged elements list.
@@ -194,9 +167,8 @@ Script Text:
 Logged Elements:
 {chr(10).join(logged_elements)}
 """
-        msg = HumanMessage(content=prompt)
-        response = llm.invoke([msg])
-        return response.content
+        provider = OllamaLLMProvider()
+        return provider.generate(prompt=prompt, temperature=0.1)
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -234,26 +206,11 @@ def dispatch_script_breakdown(project_id: str) -> str:
     Dispatch a background Celery task to break down a script and write scenes/characters to the database.
     """
     try:
-        from langchain_qdrant import QdrantVectorStore
-        from qdrant_client import QdrantClient
-        from langchain_ollama import OllamaEmbeddings
         from apps.narrative.tasks import batch_script_breakdown
         
-        embeddings = OllamaEmbeddings(
-            model="hf.co/compendiumlabs/bge-base-en-v1.5-gguf",
-            base_url="http://host.docker.internal:11434"
-        )
-        qdrant_client = QdrantClient(url="http://qdrant:6333")
-        store = QdrantVectorStore(
-            client=qdrant_client,
-            collection_name="studio_documents",
-            embedding=embeddings,
-        )
-        
-        # In a real app we'd fetch the specific script document for this project.
-        # Here we just grab some text from the store to simulate reading the script.
-        results = store.similarity_search("EXT. OR INT.", k=20)
-        raw_script_text = "\n".join([res.page_content for res in results])
+        adapter = QdrantVectorAdapter()
+        results = adapter.search("EXT. OR INT.", limit=20)
+        raw_script_text = "\n".join([res.content for res in results])
         
         if not raw_script_text:
             return "No script documents found in the vector store to break down."

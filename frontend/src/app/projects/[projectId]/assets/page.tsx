@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, Shot } from '@/lib/api';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import { FileExplorer } from '@/components/studio/FileExplorer';
 
@@ -68,7 +68,7 @@ export default function AssetsPage({ params }: { params: { projectId: string } }
     act.sequences?.forEach(seq => {
       seq.scenes?.forEach(scene => {
         scene.camera_setups?.forEach(setup => {
-          setup.shots?.forEach(shot => {
+          setup.shots?.forEach((shot: Shot) => {
             if (shot.storyboard_frame_url) {
               assets.push({
                 id: shot.id,

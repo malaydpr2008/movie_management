@@ -210,7 +210,7 @@ export default function DoodMatrixView({ projectId }: DoodMatrixViewProps) {
 
                     {/* Idle Ratio */}
                     <td className="px-3 py-3 text-center font-mono text-[11px] text-slate-500 border-r border-white/10">
-                      {Math.round(char.idle_ratio * 100)}%
+                      {Math.round((char.idle_ratio ?? 0) * 100)}%
                     </td>
 
                     {/* Daily Status Cells */}

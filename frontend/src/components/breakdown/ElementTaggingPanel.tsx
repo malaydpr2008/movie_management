@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import FloatingMediaViewer from '@/components/ui/FloatingMediaViewer';
 import { Paperclip } from 'lucide-react';
 import { api, SceneTreeNode } from '@/lib/api';
+import { breakdownApi } from '@/lib/api/breakdown';
 
 const CATEGORIES = [
   'Cast', 'Extras', 'Props', 'Wardrobe', 'Makeup', 'Vehicles',
@@ -69,11 +70,8 @@ export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
 
   const fetchElements = async (sid: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/breakdown/projects/${projectId}/scenes/${sid}/elements`);
-      if (res.ok) {
-        const data = await res.json();
-        setElements(data.elements || []);
-      }
+      const data = await breakdownApi.getSceneElements(projectId, sid);
+      setElements(data.elements || []);
     } catch (err) {
       console.error("Failed to fetch elements", err);
     }
@@ -81,22 +79,18 @@ export default function ElementTaggingPanel({ projectId, sceneId }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !activeSceneId) return;
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/breakdown/projects/${projectId}/scenes/${activeSceneId}/elements`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category, name, description })
+      const newElement = await breakdownApi.createSceneElement(projectId, activeSceneId, {
+        category,
+        name,
+        description,
       });
-
-      if (res.ok) {
-        const newElement = await res.json();
-        setElements([...elements, newElement]);
-        setName('');
-        setDescription('');
-      }
+      setElements([...elements, newElement]);
+      setName('');
+      setDescription('');
     } catch (err) {
       console.error("Failed to add element", err);
     } finally {

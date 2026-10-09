@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import {
   Layers,
   Plus,
@@ -13,9 +13,18 @@ import {
   Flame,
   Wand2,
   Sparkles,
-  Link as LinkIcon
 } from 'lucide-react';
-import { SceneBreakdownItem, CatalogsResponse, api } from '@/lib/api';
+import { SceneBreakdownItem } from '@/lib/types';
+import { breakdownApi } from '@/lib/api/breakdown';
+import {
+  useCatalogs,
+  useAddBreakdownItem,
+  useDeleteBreakdownItem,
+} from '@/hooks/useBreakdown';
+import {
+  useSceneDetail,
+  useSequenceDetail,
+} from '@/hooks/useNarrative';
 import { toast } from '@/stores/useToastStore';
 
 interface DepartmentBreakdownDrawerProps {
@@ -47,7 +56,6 @@ export function DepartmentBreakdownDrawer({
   items,
   onItemsUpdated,
 }: DepartmentBreakdownDrawerProps) {
-  const queryClient = useQueryClient();
   const [isLinking, setIsLinking] = useState(false);
   const [elementType, setElementType] = useState<'PROP' | 'WARDROBE' | 'SOUND' | 'SFX' | 'VFX'>('PROP');
   const [selectedPropId, setSelectedPropId] = useState('');
@@ -55,28 +63,18 @@ export function DepartmentBreakdownDrawer({
   const [customNotes, setCustomNotes] = useState('');
   const [isContinuityCritical, setIsContinuityCritical] = useState(false);
 
-  const { data: catalogs } = useQuery<CatalogsResponse>({
-    queryKey: ['catalogs', projectId],
-    queryFn: () => api.getCatalogs(projectId),
-    enabled: Boolean(projectId),
-  });
+  // Feature hooks for server state
+  const { data: catalogs } = useCatalogs(projectId);
+  const { data: sceneData } = useSceneDetail(sceneId);
+  const { data: sequenceData } = useSequenceDetail(sceneData?.sequence_id || '');
 
-  const { data: sceneData } = useQuery({
-    queryKey: ['sceneDetail', sceneId],
-    queryFn: () => api.getSceneDetail(sceneId),
-    enabled: Boolean(sceneId),
-  });
-
-  const { data: sequenceData } = useQuery({
-    queryKey: ['sequenceDetail', sceneData?.sequence_id],
-    queryFn: () => api.getSequenceDetail(sceneData!.sequence_id!),
-    enabled: Boolean(sceneData?.sequence_id),
-  });
+  const addItemMutation = useAddBreakdownItem(sceneId, projectId);
+  const deleteItemMutation = useDeleteBreakdownItem(sceneId, projectId);
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.addSceneBreakdownItem(sceneId, {
+      await addItemMutation.mutateAsync({
         element_type: elementType,
         prop_id: elementType === 'PROP' && selectedPropId ? selectedPropId : undefined,
         costume_id: elementType === 'WARDROBE' && selectedCostumeId ? selectedCostumeId : undefined,
@@ -97,7 +95,7 @@ export function DepartmentBreakdownDrawer({
 
   const handleDeleteItem = async (itemId: string) => {
     try {
-      await api.deleteBreakdownItem(itemId);
+      await deleteItemMutation.mutateAsync(itemId);
       toast.info('Item Removed', 'Breakdown item untagged.');
       onItemsUpdated();
     } catch (err: any) {
@@ -106,13 +104,13 @@ export function DepartmentBreakdownDrawer({
   };
 
   const aiCopilotMutation = useMutation({
-    mutationFn: () => api.runAiCopilot(sceneId),
-    onSuccess: (data) => {
+    mutationFn: () => breakdownApi.runAiCopilot(sceneId),
+    onSuccess: () => {
       toast.info('Breakdown Dispatched', 'Breakdown dispatched to background workers. You will be notified when it is ready for review.');
     },
     onError: (err: any) => {
       toast.error('AI Extraction Failed', err.message);
-    }
+    },
   });
 
   return (
@@ -216,8 +214,8 @@ export function DepartmentBreakdownDrawer({
                   className="w-full px-3 py-2 bg-studio-900 border border-white/10 rounded-lg text-xs text-white"
                 >
                   <option value="">-- Choose Costume Look --</option>
-                  {catalogs?.characters.map((c) =>
-                    c.looks.map((lk) => (
+                  {catalogs?.characters.flatMap((c) =>
+                    (c.looks || c.costume_looks || []).map((lk) => (
                       <option key={lk.id} value={lk.id}>
                         {c.name} - {lk.look_number}: {lk.description.slice(0, 30)}...
                       </option>
@@ -254,9 +252,10 @@ export function DepartmentBreakdownDrawer({
 
             <button
               type="submit"
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-xs font-bold text-white shadow-sm"
+              disabled={addItemMutation.isPending}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-xs font-bold text-white shadow-sm disabled:opacity-50"
             >
-              Tag Asset
+              {addItemMutation.isPending ? 'Tagging...' : 'Tag Asset'}
             </button>
           </div>
         </form>

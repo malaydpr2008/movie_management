@@ -19,6 +19,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { api, SceneDetail, SceneCoverage, SceneBreakdownItem } from '@/lib/api';
+import { useSceneDetail } from '@/hooks/useNarrative';
+import { useSceneCoverage } from '@/hooks/useShots';
+import { useSceneBreakdownItems } from '@/hooks/useBreakdown';
 import { LinedScriptEditor } from '@/components/studio/LinedScriptEditor';
 import { DepartmentBreakdownDrawer } from '@/components/studio/DepartmentBreakdownDrawer';
 import { LogisticsPageMathDrawer } from '@/components/studio/LogisticsPageMathDrawer';
@@ -48,33 +51,21 @@ export default function SceneBuilderPage({
     data: scene,
     isLoading: isLoadingScene,
     refetch: refetchScene,
-  } = useQuery<SceneDetail>({
-    queryKey: ['sceneDetail', sceneId],
-    queryFn: () => api.getSceneDetail(sceneId),
-    enabled: Boolean(sceneId),
-  });
+  } = useSceneDetail(sceneId);
 
   // Fetch Scene Coverage (Setups, Shots, Takes)
   const {
     data: coverage,
     isLoading: isLoadingCoverage,
     refetch: refetchCoverage,
-  } = useQuery<SceneCoverage>({
-    queryKey: ['sceneCoverage', sceneId],
-    queryFn: () => api.getSceneCoverage(sceneId),
-    enabled: Boolean(sceneId),
-  });
+  } = useSceneCoverage(sceneId);
 
   // Fetch Scene Breakdown Items
   const {
     data: breakdownItems = [],
     isLoading: isLoadingBreakdown,
     refetch: refetchBreakdown,
-  } = useQuery<SceneBreakdownItem[]>({
-    queryKey: ['sceneBreakdown', sceneId],
-    queryFn: () => api.getSceneBreakdownItems(sceneId),
-    enabled: Boolean(sceneId),
-  });
+  } = useSceneBreakdownItems(sceneId);
 
   const setups = coverage?.setups || [];
   const allShots = setups.flatMap((s) => s.shots);

@@ -5,40 +5,32 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Film, Clapperboard, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api, Project } from '@/lib/api';
+import { Project } from '@/lib/api';
+import { useProjects, useCreateProject } from '@/hooks/useStudio';
 
 export default function RootHomePage() {
-  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   const router = useRouter();
 
-  const { data: projects = [], isLoading } = useQuery<Project[]>({
-    queryKey: ['projects'],
-    queryFn: () => api.getProjects(),
-  });
+  const { data: projects = [], isLoading } = useProjects();
+  const createProjectMutation = useCreateProject();
 
-  const createProject = useMutation({
-    mutationFn: (title: string) => api.createProject({ title }),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      setIsModalOpen(false);
-      setNewProjectTitle('');
-      setErrorMessage('');
-      router.push(`/projects/${data.id}`);
-    },
-    onError: (error) => {
-      setErrorMessage(`Failed to create project: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  });
-
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     if (newProjectTitle.trim()) {
-      createProject.mutate(newProjectTitle);
+      try {
+        const data = await createProjectMutation.mutateAsync({ title: newProjectTitle });
+        setIsModalOpen(false);
+        setNewProjectTitle('');
+        setErrorMessage('');
+        router.push(`/projects/${data.id}`);
+      } catch (error) {
+        setErrorMessage(`Failed to create project: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
   };
 
@@ -155,10 +147,10 @@ export default function RootHomePage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={createProject.isPending || !newProjectTitle.trim()}
+                    disabled={createProjectMutation.isPending || !newProjectTitle.trim()}
                     className="px-5 py-2 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2"
                   >
-                    {createProject.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    {createProjectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                     Create Project
                   </button>
                 </div>

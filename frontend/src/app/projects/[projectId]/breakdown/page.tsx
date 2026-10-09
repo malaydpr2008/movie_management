@@ -12,7 +12,8 @@ import {
   Sparkles,
   Tag
 } from 'lucide-react';
-import { api, BreakdownSummary } from '@/lib/api';
+import { BreakdownSummary } from '@/lib/api';
+import { useBreakdownSummary } from '@/hooks/useBreakdown';
 import LocationsTab from '@/components/breakdown/LocationsTab';
 import CharactersTab from '@/components/breakdown/CharactersTab';
 import PropsTab from '@/components/breakdown/PropsTab';
@@ -30,11 +31,7 @@ export default function BreakdownCatalogsPage({ params }: { params: { projectId:
     isLoading,
     refetch,
     isFetching,
-  } = useQuery<BreakdownSummary>({
-    queryKey: ['breakdownSummary', projectId],
-    queryFn: () => api.getBreakdownSummary(projectId),
-    enabled: Boolean(projectId),
-  });
+  } = useBreakdownSummary(projectId);
 
   if (isLoading || !summary) {
     return (

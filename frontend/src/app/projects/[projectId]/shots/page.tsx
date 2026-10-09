@@ -4,16 +4,13 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Camera, Video, Film, CircleDot, Clapperboard, ChevronRight, Layers } from 'lucide-react';
 import Link from 'next/link';
-import { api, ProjectTree } from '@/lib/api';
+import { ProjectTree } from '@/lib/api';
+import { useProjectTree } from '@/hooks/useNarrative';
 
 export default function ShotListPage({ params }: { params: { projectId: string } }) {
   const { projectId } = params;
 
-  const { data: projectTree, isLoading } = useQuery<ProjectTree>({
-    queryKey: ['projectTree', projectId],
-    queryFn: () => api.getProjectTree(projectId),
-    enabled: Boolean(projectId),
-  });
+  const { data: projectTree, isLoading } = useProjectTree(projectId);
 
   if (isLoading || !projectTree) {
     return (

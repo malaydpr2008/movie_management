@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { api, SceneTreeNode } from '@/lib/api';
+import { narrativeApi } from '@/lib/api/narrative';
 
 const STATUS_COLORS: Record<string, string> = {
   'PENDING': 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -54,11 +55,8 @@ export default function ADRPanel({ projectId, sceneId }: Props) {
 
   const fetchCues = async (sid: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/narrative/projects/${projectId}/scenes/${sid}/adr`);
-      if (res.ok) {
-        const data = await res.json();
-        setCues(data || []);
-      }
+      const data = await narrativeApi.getSceneAdrCues(projectId, sid);
+      setCues(data || []);
     } catch (err) {
       console.error("Failed to fetch ADR cues", err);
     }
@@ -66,29 +64,21 @@ export default function ADRPanel({ projectId, sceneId }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!characterName.trim() || !lineText.trim() || !reason.trim()) return;
+    if (!characterName.trim() || !lineText.trim() || !reason.trim() || !activeSceneId) return;
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/narrative/projects/${projectId}/scenes/${activeSceneId}/adr`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          character_name: characterName,
-          line_text: lineText,
-          timecode: timecode || null,
-          reason: reason
-        })
+      const newCue = await narrativeApi.createSceneAdrCue(projectId, activeSceneId, {
+        character_name: characterName,
+        line_text: lineText,
+        timecode: timecode || null,
+        reason: reason,
       });
-
-      if (res.ok) {
-        const newCue = await res.json();
-        setCues([...cues, newCue]);
-        setCharacterName('');
-        setLineText('');
-        setTimecode('');
-        setReason('');
-      }
+      setCues([...cues, newCue]);
+      setCharacterName('');
+      setLineText('');
+      setTimecode('');
+      setReason('');
     } catch (err) {
       console.error("Failed to add ADR cue", err);
     } finally {
@@ -98,16 +88,8 @@ export default function ADRPanel({ projectId, sceneId }: Props) {
 
   const updateStatus = async (cueId: string, newStatus: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/narrative/projects/${projectId}/adr/${cueId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-
-      if (res.ok) {
-        const updatedCue = await res.json();
-        setCues(cues.map(c => c.id === cueId ? updatedCue : c));
-      }
+      const updatedCue = await narrativeApi.updateAdrCueStatus(projectId, cueId, newStatus);
+      setCues(cues.map(c => c.id === cueId ? updatedCue : c));
     } catch (err) {
       console.error("Failed to update status", err);
     }

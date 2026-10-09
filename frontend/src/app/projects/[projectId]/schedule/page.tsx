@@ -9,7 +9,8 @@ import {
   Sparkles,
   RefreshCw
 } from 'lucide-react';
-import { api, ScheduleData } from '@/lib/api';
+import { ScheduleData } from '@/lib/api';
+import { useSchedule } from '@/hooks/useProduction';
 import StripboardView from '@/components/schedule/StripboardView';
 import DoodMatrixView from '@/components/schedule/DoodMatrixView';
 
@@ -22,11 +23,7 @@ export default function SchedulePage({ params }: { params: { projectId: string }
     isLoading,
     refetch,
     isFetching,
-  } = useQuery<ScheduleData>({
-    queryKey: ['projectSchedule', projectId],
-    queryFn: () => api.getSchedule(projectId),
-    enabled: Boolean(projectId),
-  });
+  } = useSchedule(projectId);
 
   if (isLoading || !schedule) {
     return (

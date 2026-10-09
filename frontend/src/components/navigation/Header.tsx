@@ -11,8 +11,8 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useProjectStore } from '@/stores/useProjectStore';
-import { ProjectTree, api, Project } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { ProjectTree } from '@/lib/types';
+import { useProjects } from '@/hooks/useStudio';
 
 interface HeaderProps {
   projectId: string;
@@ -25,10 +25,7 @@ export function Header({ projectId, projectTree, onRefresh }: HeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
 
-  const { data: projects = [] } = useQuery<Project[]>({
-    queryKey: ['projects'],
-    queryFn: () => api.getProjects(),
-  });
+  const { data: projects = [] } = useProjects();
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, BudgetSummary, BudgetAccountIn, LineItemIn, LineItemOut } from '@/lib/api';
+import { useBudgetSummary } from '@/hooks/useBudgeting';
 import { toast } from '@/stores/useToastStore';
 import { DollarSign, Plus, ChevronDown, ChevronRight, Loader2, X, Pencil, Trash2 } from 'lucide-react';
 
@@ -25,10 +26,7 @@ export default function BudgetPage({ params }: { params: { projectId: string } }
     OTHER: true,
   });
 
-  const { data: summary, isLoading } = useQuery<BudgetSummary>({
-    queryKey: ['budget', projectId],
-    queryFn: () => api.getBudgetSummary(projectId),
-  });
+  const { data: summary, isLoading } = useBudgetSummary(projectId);
 
   const toggleSection = (cat: string) => {
     setExpandedSections(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -344,7 +342,7 @@ function LineItemDrawer({ accountId, accountName, projectId, isOpen, onClose }: 
         ) : items.length === 0 ? (
           <div className="text-center text-sm text-slate-500 py-10 border border-dashed border-white/10 rounded-xl">No line items in this account yet.</div>
         ) : (
-          items.map(item => (
+          items.map((item: LineItemOut) => (
             <div key={item.id} className="bg-studio-950 border border-white/5 rounded-xl p-3 flex items-center justify-between group">
               <div>
                 <p className="text-sm font-medium text-white">{item.description}</p>

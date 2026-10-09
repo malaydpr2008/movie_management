@@ -1,7 +1,7 @@
 import uuid
 from typing import List, Optional, TypedDict
 from pydantic import BaseModel, Field
-from langchain_ollama import ChatOllama
+from apps.core.infrastructure.llm.ollama_provider import OllamaLLMProvider
 from langgraph.graph import StateGraph, END
 from django.shortcuts import get_object_or_404
 from apps.narrative.models import Scene, Project
@@ -35,10 +35,7 @@ class BreakdownState(TypedDict):
     summary: dict
 
 def extract_entities(state: BreakdownState) -> BreakdownState:
-    # Use local Ollama instance (qwen3.5:9b) to extract structured data
-    llm = ChatOllama(model="qwen3.5:9b", base_url="http://host.docker.internal:11434", temperature=0.1)
-    structured_llm = llm.with_structured_output(SceneExtraction)
-    
+    provider = OllamaLLMProvider()
     prompt = f"""
     Analyze the following scene script and extract physical production elements.
     Scene Script:
@@ -46,7 +43,7 @@ def extract_entities(state: BreakdownState) -> BreakdownState:
     """
     
     try:
-        extracted = structured_llm.invoke(prompt)
+        extracted = provider.generate_structured(prompt, SceneExtraction, temperature=0.1)
     except Exception as e:
         # Fallback if API fails (e.g. no key)
         extracted = SceneExtraction(props=[], wardrobe=[], vfx=[], characters=[])

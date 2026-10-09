@@ -1,22 +1,16 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { api, ProjectTree, ScheduleData } from '@/lib/api';
+import { ProjectTree, ScheduleData } from '@/lib/api';
+import { useProjectTree } from '@/hooks/useNarrative';
+import { useSchedule } from '@/hooks/useProduction';
 import { Loader2, GripVertical, AlertCircle } from 'lucide-react';
 
 export default function SequenceBoardPage({ params }: { params: { projectId: string } }) {
   const { projectId } = params;
 
-  const { data: tree, isLoading: isLoadingTree } = useQuery<ProjectTree>({
-    queryKey: ['projectTree', projectId],
-    queryFn: () => api.getProjectTree(projectId),
-  });
-
-  const { data: schedule, isLoading: isLoadingSchedule } = useQuery<ScheduleData>({
-    queryKey: ['schedule', projectId],
-    queryFn: () => api.getSchedule(projectId),
-  });
+  const { data: tree, isLoading: isLoadingTree } = useProjectTree(projectId);
+  const { data: schedule, isLoading: isLoadingSchedule } = useSchedule(projectId);
 
   const isLoading = isLoadingTree || isLoadingSchedule;
 

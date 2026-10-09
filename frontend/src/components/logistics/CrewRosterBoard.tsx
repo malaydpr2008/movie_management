@@ -3,16 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Phone, Mail, DollarSign, Plus, X, Briefcase, Shield } from 'lucide-react';
 import { toast } from '@/stores/useToastStore';
+import { productionApi } from '@/lib/api/production';
 
 interface CrewMember {
   id: string;
   name: string;
   role: string;
   department: string;
-  union_affiliation: string;
-  day_rate: number;
-  email: string | null;
-  phone: string | null;
+  union_affiliation?: string;
+  day_rate?: number;
+  email?: string | null;
+  phone?: string | null;
 }
 
 export default function CrewRosterBoard({ projectId }: { projectId: string }) {
@@ -26,11 +27,8 @@ export default function CrewRosterBoard({ projectId }: { projectId: string }) {
 
   const fetchCrew = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/studio/projects/${projectId}/crew`);
-      if (res.ok) {
-        const data = await res.json();
-        setCrew(data);
-      }
+      const data = await productionApi.getCrewMembers(projectId);
+      setCrew(data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -109,13 +107,13 @@ export default function CrewRosterBoard({ projectId }: { projectId: string }) {
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-studio-950 text-slate-300 text-xs font-mono border border-white/10">
                             <Shield className="w-3 h-3 text-emerald-500" />
-                            {member.union_affiliation}
+                            {member.union_affiliation || "Non-Union"}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1 font-mono text-emerald-400 font-bold">
                             <DollarSign className="w-3 h-3" />
-                            {member.day_rate.toFixed(2)}
+                            {(member.day_rate ?? 0).toFixed(2)}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -173,20 +171,11 @@ function AddCrewModal({ projectId, onClose, onSuccess }: any) {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/studio/projects/${projectId}/crew`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        onSuccess(data);
-      } else {
-        toast.error("Error", "Failed to add crew member.");
-      }
-    } catch (err) {
+      const data = await productionApi.createCrewMember(projectId, formData as any);
+      onSuccess(data);
+    } catch (err: any) {
       console.error(err);
-      toast.error("Error", "Network error.");
+      toast.error("Error", err.message || "Failed to add crew member.");
     } finally {
       setSaving(false);
     }
