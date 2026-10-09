@@ -384,6 +384,118 @@ class BreakdownCharacterizationTests(TestCase):
         self.assertIn("We need to move now.", call_prompt)
 
     @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_script_blocks_empty_list_falls_back_to_heading(self, generate_structured):
+        """
+        Behavior Protected: An empty blocks list falls back to scene heading and default message.
+        Level: Regression test for malformed script data.
+        """
+        generate_structured.return_value = SceneExtraction()
+        empty_blocks_scene = Scene.objects.create(
+            sequence=self.sequence,
+            scene_number="3",
+            set_name="HANGAR",
+            script_data={"blocks": []}
+        )
+        run_scene_breakdown(str(empty_blocks_scene.id))
+        call_prompt = generate_structured.call_args[0][0]
+        self.assertIn("INT HANGAR - DAY", call_prompt)
+        self.assertIn("(No script text available)", call_prompt)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_script_blocks_none_falls_back_to_heading(self, generate_structured):
+        """
+        Behavior Protected: blocks=None does not raise TypeError and falls back to heading.
+        Level: Regression test for non-iterable blocks.
+        """
+        generate_structured.return_value = SceneExtraction()
+        none_blocks_scene = Scene.objects.create(
+            sequence=self.sequence,
+            scene_number="4",
+            set_name="CONTROL_ROOM",
+            script_data={"blocks": None}
+        )
+        run_scene_breakdown(str(none_blocks_scene.id))
+        call_prompt = generate_structured.call_args[0][0]
+        self.assertIn("INT CONTROL_ROOM - DAY", call_prompt)
+        self.assertIn("(No script text available)", call_prompt)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_script_blocks_mixed_malformed_extracts_only_valid_content(self, generate_structured):
+        """
+        Behavior Protected: Mixed malformed blocks (strings, None, numbers, non-content dicts)
+        do not raise errors and only valid string content is extracted.
+        Level: Regression test for malformed block elements.
+        """
+        generate_structured.return_value = SceneExtraction()
+        malformed_scene = Scene.objects.create(
+            sequence=self.sequence,
+            scene_number="5",
+            set_name="VAULT",
+            script_data={
+                "blocks": [
+                    "invalid string block",
+                    None,
+                    42,
+                    {"other": "value without content key"},
+                    {"content": None},
+                    {"content": 100},
+                    {"content": "  "},
+                    {"type": "action", "content": "Laser cutter ignites against the titanium vault."}
+                ]
+            }
+        )
+        run_scene_breakdown(str(malformed_scene.id))
+        call_prompt = generate_structured.call_args[0][0]
+        self.assertIn("Laser cutter ignites against the titanium vault.", call_prompt)
+        self.assertNotIn("invalid string block", call_prompt)
+        self.assertNotIn("(No script text available)", call_prompt)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_script_blocks_empty_content_falls_back_to_heading(self, generate_structured):
+        """
+        Behavior Protected: Blocks containing only empty or whitespace content fall back to heading.
+        Level: Regression test.
+        """
+        generate_structured.return_value = SceneExtraction()
+        whitespace_scene = Scene.objects.create(
+            sequence=self.sequence,
+            scene_number="6",
+            set_name="ROOFTOP",
+            script_data={
+                "blocks": [
+                    {"content": ""},
+                    {"content": "   "},
+                    {"content": None}
+                ]
+            }
+        )
+        run_scene_breakdown(str(whitespace_scene.id))
+        call_prompt = generate_structured.call_args[0][0]
+        self.assertIn("INT ROOFTOP - DAY", call_prompt)
+        self.assertIn("(No script text available)", call_prompt)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_script_blocks_fallback_to_script_data_text(self, generate_structured):
+        """
+        Behavior Protected: When blocks contain no usable content, falls back to non-empty script_data['text'].
+        Level: Regression test for text fallback.
+        """
+        generate_structured.return_value = SceneExtraction()
+        text_fallback_scene = Scene.objects.create(
+            sequence=self.sequence,
+            scene_number="7",
+            set_name="BUNKER",
+            script_data={
+                "blocks": [],
+                "text": "Fallback text: Sirens wail in the background."
+            }
+        )
+        run_scene_breakdown(str(text_fallback_scene.id))
+        call_prompt = generate_structured.call_args[0][0]
+        self.assertIn("Fallback text: Sirens wail in the background.", call_prompt)
+        self.assertNotIn("(No script text available)", call_prompt)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
     def test_ai_copilot_ignores_blank_or_whitespace_names(self, generate_structured):
         """
         Behavior Protected: Extracted entities with empty or whitespace names are ignored.

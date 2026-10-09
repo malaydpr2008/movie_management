@@ -181,23 +181,36 @@ _graph_builder.add_edge("match_existing_catalogs", END)
 copilot_graph = _graph_builder.compile()
 
 
+def _extract_script_text(scene: Scene) -> str:
+    script_data = scene.script_data or {}
+    blocks = script_data.get("blocks")
+    usable_parts: List[str] = []
+
+    if isinstance(blocks, list):
+        for b in blocks:
+            if isinstance(b, dict):
+                content = b.get("content")
+                if isinstance(content, str) and content.strip():
+                    usable_parts.append(content)
+
+    if usable_parts:
+        return "\n".join(usable_parts)
+
+    raw_text = script_data.get("text")
+    if isinstance(raw_text, str) and raw_text.strip():
+        return raw_text
+
+    heading = f"{scene.int_ext} {scene.set_name} - {scene.time_of_day}" if scene.set_name else "SCENE"
+    return f"{heading}\n(No script text available)"
+
+
 def run_scene_breakdown(scene_id: str) -> dict:
     scene = get_object_or_404(Scene, id=scene_id)
     project_id = _get_scene_project_id(scene)
     if not project_id:
         raise ValueError(f"Cannot run breakdown: Scene {scene_id} is not associated with any project.")
 
-    script_data = scene.script_data or {}
-    if "blocks" in script_data:
-        script_text = "\n".join(
-            b.get("content", "") for b in script_data["blocks"] if b.get("content")
-        )
-    elif "text" in script_data:
-        script_text = script_data["text"]
-    else:
-        heading = f"{scene.int_ext} {scene.set_name} - {scene.time_of_day}" if scene.set_name else "SCENE"
-        script_text = f"{heading}\n(No script text available)"
-
+    script_text = _extract_script_text(scene)
     initial_state: BreakdownState = {
         "scene_id": str(scene.id),
         "project_id": project_id,
