@@ -2,8 +2,13 @@ import json
 import uuid
 from django.test import TestCase, Client
 from pydantic import ValidationError
+from unittest.mock import patch
 from apps.narrative.models import Project, Act, Sequence, Scene
 from apps.breakdown.models import MasterLocation, Character, CostumeLook, Prop, SceneBreakdownItem
+from apps.breakdown.ai_copilot import (
+    ExtractedCharacter, ExtractedProp, ExtractedVFX, ExtractedWardrobe,
+    OllamaLLMProvider, SceneExtraction, run_scene_breakdown,
+)
 
 class BreakdownCharacterizationTests(TestCase):
     """
@@ -193,6 +198,224 @@ class BreakdownCharacterizationTests(TestCase):
         self.assertEqual(char_data["name"], "Sarah Connor")
         self.assertEqual(char_data["cast_id_number"], 2)
         self.assertTrue(Character.objects.filter(name="Sarah Connor").exists())
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_tags_props_cast_and_wardrobe_using_supported_fields(self, generate_structured):
+        generate_structured.return_value = SceneExtraction(
+            props=[ExtractedProp(name="Signal Flare", description="Red emergency flare")],
+            characters=[ExtractedCharacter(name="Mara")],
+            wardrobe=[ExtractedWardrobe(character_name="Mara", description="Weathered coat")],
+            vfx=[ExtractedVFX(description="Distant explosion")],
+        )
+
+        summary = run_scene_breakdown(str(self.scene.id))
+
+        self.assertEqual(summary, {
+            "props_added": 1,
+            "wardrobe_added": 1,
+            "vfx_added": 1,
+            "characters_added": 1,
+        })
+        flare = Prop.objects.get(project=self.project, name="Signal Flare")
+        mara = Character.objects.get(project=self.project, name="Mara")
+        look = CostumeLook.objects.get(character=mara, description="Weathered coat")
+        self.assertTrue(SceneBreakdownItem.objects.filter(
+            scene=self.scene, element_type="PROPS", prop=flare,
+            custom_notes="Red emergency flare",
+        ).exists())
+        self.assertTrue(SceneBreakdownItem.objects.filter(
+            scene=self.scene, element_type="CAST", custom_notes="Mara",
+        ).exists())
+        self.assertTrue(SceneBreakdownItem.objects.filter(
+            scene=self.scene, element_type="WARDROBE", costume=look,
+        ).exists())
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_is_idempotent_for_existing_catalog_tags(self, generate_structured):
+        generate_structured.return_value = SceneExtraction(
+            props=[ExtractedProp(name="Signal Flare", description="Red emergency flare")],
+            characters=[ExtractedCharacter(name="Mara")],
+            wardrobe=[ExtractedWardrobe(character_name="Mara", description="Weathered coat")],
+        )
+
+        first_summary = run_scene_breakdown(str(self.scene.id))
+        second_summary = run_scene_breakdown(str(self.scene.id))
+
+        self.assertEqual(first_summary["props_added"], 1)
+        self.assertEqual(second_summary["props_added"], 0)
+        self.assertEqual(second_summary["characters_added"], 0)
+        self.assertEqual(second_summary["wardrobe_added"], 0)
+        self.assertEqual(SceneBreakdownItem.objects.filter(
+            scene=self.scene, element_type="PROPS",
+            prop__name="Signal Flare",
+        ).count(), 1)
+        self.assertEqual(SceneBreakdownItem.objects.filter(
+            scene=self.scene, element_type="CAST", custom_notes="Mara",
+        ).count(), 1)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured", side_effect=RuntimeError("LLM unavailable"))
+    def test_ai_copilot_llm_failure_returns_empty_summary(self, _generate_structured):
+        summary = run_scene_breakdown(str(self.scene.id))
+        self.assertEqual(summary, {
+            "props_added": 0,
+            "wardrobe_added": 0,
+            "vfx_added": 0,
+            "characters_added": 0,
+        })
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_empty_llm_output_returns_zero_summary(self, generate_structured):
+        """
+        Behavior Protected: Empty LLM output returns a zero-count summary without errors.
+        Level: Unit / regression test.
+        """
+        generate_structured.return_value = SceneExtraction(
+            props=[], characters=[], wardrobe=[], vfx=[]
+        )
+        summary = run_scene_breakdown(str(self.scene.id))
+        self.assertEqual(summary, {
+            "props_added": 0,
+            "wardrobe_added": 0,
+            "vfx_added": 0,
+            "characters_added": 0,
+        })
+        self.assertEqual(SceneBreakdownItem.objects.filter(scene=self.scene).count(), 0)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_none_llm_output_handled_safely(self, generate_structured):
+        """
+        Behavior Protected: When LLM provider returns None, copilot defaults safely.
+        Level: Unit / regression test.
+        """
+        generate_structured.return_value = None
+        summary = run_scene_breakdown(str(self.scene.id))
+        self.assertEqual(summary, {
+            "props_added": 0,
+            "wardrobe_added": 0,
+            "vfx_added": 0,
+            "characters_added": 0,
+        })
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_wardrobe_auto_creates_missing_character(self, generate_structured):
+        """
+        Behavior Protected: If wardrobe references a character not present in extracted.characters,
+        the character is automatically created and counted.
+        Level: Integration test.
+        """
+        generate_structured.return_value = SceneExtraction(
+            props=[],
+            characters=[],
+            wardrobe=[ExtractedWardrobe(character_name="Commander Vance", description="Armored flight suit")],
+            vfx=[],
+        )
+        summary = run_scene_breakdown(str(self.scene.id))
+        self.assertEqual(summary["characters_added"], 1)
+        self.assertEqual(summary["wardrobe_added"], 1)
+        self.assertTrue(Character.objects.filter(project=self.project, name="Commander Vance").exists())
+        vance = Character.objects.get(project=self.project, name="Commander Vance")
+        look = CostumeLook.objects.get(character=vance, description="Armored flight suit")
+        self.assertTrue(SceneBreakdownItem.objects.filter(
+            scene=self.scene, element_type="WARDROBE", costume=look
+        ).exists())
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_wardrobe_duplicate_prevention_on_repeated_runs(self, generate_structured):
+        """
+        Behavior Protected: Running copilot twice does not create duplicate wardrobe tags.
+        Level: Regression test.
+        """
+        generate_structured.return_value = SceneExtraction(
+            wardrobe=[ExtractedWardrobe(character_name="Dr. Aris Thorne", description="Hazmat suit")]
+        )
+        first_summary = run_scene_breakdown(str(self.scene.id))
+        second_summary = run_scene_breakdown(str(self.scene.id))
+
+        self.assertEqual(first_summary["wardrobe_added"], 1)
+        self.assertEqual(second_summary["wardrobe_added"], 0)
+        self.assertEqual(
+            SceneBreakdownItem.objects.filter(scene=self.scene, element_type="WARDROBE").count(),
+            1
+        )
+
+    def test_ai_copilot_scene_without_project_raises_value_error(self):
+        """
+        Behavior Protected: Running copilot on an unlinked scene without project raises ValueError.
+        Level: Unit test for missing related records.
+        """
+        unlinked_scene = Scene.objects.create(
+            scene_number="99X",
+            set_name="VOID"
+        )
+        with self.assertRaises(ValueError) as ctx:
+            run_scene_breakdown(str(unlinked_scene.id))
+        self.assertIn("not associated with any project", str(ctx.exception))
+
+    def test_ai_copilot_non_existent_scene_raises_404(self):
+        """
+        Behavior Protected: Passing non-existent scene ID raises Http404.
+        Level: Unit test.
+        """
+        from django.http import Http404
+        with self.assertRaises(Http404):
+            run_scene_breakdown(str(uuid.uuid4()))
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_extracts_script_blocks(self, generate_structured):
+        """
+        Behavior Protected: Structured screenplay blocks in scene.script_data are passed to prompt.
+        Level: Regression test.
+        """
+        generate_structured.return_value = SceneExtraction()
+        block_scene = Scene.objects.create(
+            sequence=self.sequence,
+            scene_number="2",
+            set_name="CORRIDOR",
+            script_data={
+                "blocks": [
+                    {"type": "action", "content": "Elena picks up the silver keycard."},
+                    {"type": "dialogue", "content": "We need to move now."}
+                ]
+            }
+        )
+        run_scene_breakdown(str(block_scene.id))
+        call_prompt = generate_structured.call_args[0][0]
+        self.assertIn("Elena picks up the silver keycard.", call_prompt)
+        self.assertIn("We need to move now.", call_prompt)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_ignores_blank_or_whitespace_names(self, generate_structured):
+        """
+        Behavior Protected: Extracted entities with empty or whitespace names are ignored.
+        Level: Robustness test.
+        """
+        generate_structured.return_value = SceneExtraction(
+            props=[ExtractedProp(name="   ", description="empty name")],
+            characters=[ExtractedCharacter(name="  ")],
+            wardrobe=[ExtractedWardrobe(character_name="  ", description="  ")],
+        )
+        summary = run_scene_breakdown(str(self.scene.id))
+        self.assertEqual(summary, {
+            "props_added": 0,
+            "wardrobe_added": 0,
+            "vfx_added": 0,
+            "characters_added": 0,
+        })
+        self.assertEqual(SceneBreakdownItem.objects.filter(scene=self.scene).count(), 0)
+
+    @patch("apps.breakdown.ai_copilot.OllamaLLMProvider.generate_structured")
+    def test_ai_copilot_vfx_unsupported_not_persisted_to_db(self, generate_structured):
+        """
+        Behavior Protected: VFX is not persisted to database (schema has no VFX catalog),
+        but extracted count is reported in summary telemetry.
+        Level: Characterization test.
+        """
+        generate_structured.return_value = SceneExtraction(
+            vfx=[ExtractedVFX(description="Orbital bombardment explosion")]
+        )
+        summary = run_scene_breakdown(str(self.scene.id))
+        self.assertEqual(summary["vfx_added"], 1)
+        self.assertFalse(SceneBreakdownItem.objects.filter(scene=self.scene, element_type="VFX").exists())
 
     def test_known_behavior_costume_look_without_photo_raises_validation_error(self):
         """
