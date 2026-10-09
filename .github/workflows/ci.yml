@@ -26,6 +26,25 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      minio:
+        image: cgr.dev/chainguard/minio:latest
+        env:
+          MINIO_ROOT_USER: studio_admin
+          MINIO_ROOT_PASSWORD: studio_password
+        ports:
+          - 9000:9000
+        command: server /data
+
     env:
       POSTGRES_HOST: 127.0.0.1
       POSTGRES_PORT: 5432
@@ -37,6 +56,12 @@ jobs:
       DB_NAME: movie_prod_db
       DB_USER: postgres
       DB_PASSWORD: postgrespassword
+      REDIS_URL: redis://127.0.0.1:6379/0
+      AWS_ACCESS_KEY_ID: studio_admin
+      AWS_SECRET_ACCESS_KEY: studio_password
+      AWS_STORAGE_BUCKET_NAME: studio-media
+      AWS_S3_ENDPOINT_URL: http://127.0.0.1:9000
+      AWS_S3_CUSTOM_DOMAIN: localhost:9000/studio-media
       SECRET_KEY: "ci-secret-key-for-testing"
       DJANGO_SECRET_KEY: "ci-secret-key-for-testing"
       DEBUG: "True"
@@ -57,6 +82,36 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Ensure infrastructure readiness and initialize MinIO bucket
+        run: |
+          python -c "
+          import time, socket, boto3
+
+          def wait_for_port(host, port, name, timeout=30):
+              start = time.time()
+              while time.time() - start < timeout:
+                  try:
+                      with socket.create_connection((host, port), timeout=1):
+                          return
+                  except OSError:
+                      time.sleep(1)
+              raise RuntimeError(f'Timed out waiting for {name} on {host}:{port}')
+
+          wait_for_port('127.0.0.1', 6379, 'Redis')
+          wait_for_port('127.0.0.1', 9000, 'MinIO')
+
+          s3 = boto3.client(
+              's3',
+              endpoint_url='http://127.0.0.1:9000',
+              aws_access_key_id='studio_admin',
+              aws_secret_access_key='studio_password',
+          )
+          buckets = [b['Name'] for b in s3.list_buckets().get('Buckets', [])]
+          if 'studio-media' not in buckets:
+              s3.create_bucket(Bucket='studio-media')
+          print('Redis and MinIO verified; studio-media bucket initialized.')
+          "
 
       - name: Verify Backend Architecture Boundaries
         working-directory: ./backend

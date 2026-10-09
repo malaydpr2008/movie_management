@@ -134,11 +134,11 @@ CHANNEL_LAYERS = {
 }
 
 # AWS S3 / MinIO Settings
-AWS_ACCESS_KEY_ID = "studio_admin"
-AWS_SECRET_ACCESS_KEY = "studio_password"
-AWS_STORAGE_BUCKET_NAME = "studio-media"
-AWS_S3_ENDPOINT_URL = "http://minio:9000"
-AWS_S3_CUSTOM_DOMAIN = "localhost:9000/studio-media"
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "studio_admin")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "studio_password")
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "studio-media")
+AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL", "http://minio:9000")
+AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN", "localhost:9000/studio-media")
 AWS_S3_USE_SSL = False
 AWS_S3_SECURE_URLS = False
 STORAGES = {
